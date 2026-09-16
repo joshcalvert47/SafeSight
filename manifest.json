@@ -1,0 +1,62 @@
+{
+    "manifest_version": 3,
+    "name": "SafeSight",
+    "version": "1.0",
+    "description": "Fast and secure AI-powered image filtering using persistent LiteRT engine.",
+    "permissions": [
+        "storage",
+        "offscreen"
+    ],
+    "host_permissions": [
+        "<all_urls>"
+    ],
+    "action": {
+        "default_popup": "popup.html",
+        "default_icon": {
+            "16": "icon.png",
+            "32": "icon.png",
+            "48": "icon.png",
+            "128": "icon.png"
+        }
+    },
+    "background": {
+        "service_worker": "service-worker.js"
+    },
+    "content_scripts": [
+        {
+            "matches": [
+                "<all_urls>"
+            ],
+            "js": [
+                "content.js"
+            ],
+            "run_at": "document_start"
+        }
+    ],
+    "content_security_policy": {
+        "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+    },
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "offscreen.html",
+                "litert.js",
+                "litert_wasm_utils.js",
+                "litert_wasm_internal.js",
+                "litert_wasm_internal.wasm",
+                "litert_wasm_compat_internal.js",
+                "litert_wasm_compat_internal.wasm",
+                "nsfw.tflite"
+            ],
+            "matches": [
+                "<all_urls>"
+            ]
+        }
+    ],
+    "icons": {
+        "16": "icon.png",
+        "32": "icon.png",
+        "48": "icon.png",
+        "128": "icon.png"
+    }
+}
