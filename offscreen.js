@@ -32,9 +32,14 @@ async function initializeModel(url) {
 initializeModel('./nsfw.tflite');
 
 chrome.runtime.onMessage.addListener(async (message) => {
-    if (message.type === 'OFFSCREEN_ANALYZE' && readyModel) {
-        try {
-            const { payload, id, tabId } = message;
+    if (message.type !== 'OFFSCREEN_ANALYZE') return;
+
+    try {
+        // Requests can arrive while the offscreen document is still loading the model.
+        // Wait instead of dropping them, otherwise the page remains blurred forever.
+        if (!readyModel) await initializeModel('./nsfw.tflite');
+
+        const { payload, id, tabId } = message;
             if (!payload || !payload.data || payload.data.length === 0) {
                 throw new Error("Received empty image data payload.");
             }
@@ -90,8 +95,17 @@ chrome.runtime.onMessage.addListener(async (message) => {
             inputTensor.delete();
             for (const key in outputs) outputs[key].delete();
 
-        } catch (e) {
-            console.error("Offscreen Analysis Error:", e);
+    } catch (e) {
+        console.error("Offscreen Analysis Error:", e);
+
+        // Never leave an image permanently blocked if analysis cannot complete.
+        if (message.id !== undefined && message.tabId !== undefined) {
+            chrome.runtime.sendMessage({
+                type: 'AI_RESULT_OFFSCREEN',
+                id: message.id,
+                tabId: message.tabId,
+                score: 0
+            });
         }
     }
 });

@@ -28,6 +28,9 @@
             "matches": [
                 "<all_urls>"
             ],
+            "exclude_matches": [
+                "https://mail.google.com/*"
+            ],
             "js": [
                 "content.js"
             ],

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<body>
+<pre id="out">START</pre>
+<script type="module">
+import { loadLiteRt, Tensor } from './litert.js';
+
+const out = document.getElementById('out');
+const log = (s) => { out.textContent += '\n' + s; };
+
+function makeCase(name, painter) {
+    const c = document.createElement('canvas');
+    c.width = 224; c.height = 224;
+    const ctx = c.getContext('2d', { alpha: false });
+    painter(ctx);
+    return { name, data: ctx.getImageData(0, 0, 224, 224).data };
+}
+
+function rgbBytes(rgba) {
+    const rgb = new Uint8Array(224 * 224 * 3);
+    for (let i = 0, j = 0; i < rgba.length; i += 4) {
+        rgb[j++] = rgba[i]; rgb[j++] = rgba[i + 1]; rgb[j++] = rgba[i + 2];
+    }
+    return rgb;
+}
+
+function softmax(v) {
+    let m = Math.max(...v);
+    const e = v.map(x => Math.exp(x - m));
+    const s = e.reduce((a, b) => a + b, 0);
+    return e.map(x => x / s);
+}
+
+const cases = [
+    makeCase('gray', ctx => { ctx.fillStyle = '#808080'; ctx.fillRect(0, 0, 224, 224); }),
+    makeCase('checker', ctx => {
+        for (let y = 0; y < 14; y++) for (let x = 0; x < 14; x++) {
+            ctx.fillStyle = (x + y) % 2 ? '#ffffff' : '#000000';
+            ctx.fillRect(x * 16, y * 16, 16, 16);
+        }
+    }),
+    makeCase('scenery', ctx => {
+        const g = ctx.createLinearGradient(0, 0, 0, 112);
+        g.addColorStop(0, '#3a7bd5'); g.addColorStop(1, '#cfe8ff');
+        ctx.fillStyle = g; ctx.fillRect(0, 0, 224, 112);
+        ctx.fillStyle = '#f7d794'; ctx.beginPath(); ctx.arc(180, 30, 18, 0, 7); ctx.fill();
+        ctx.fillStyle = '#4a8f3c'; ctx.fillRect(0, 112, 224, 112);
+        ctx.fillStyle = '#2d5a27'; ctx.beginPath(); ctx.moveTo(40, 112); ctx.lineTo(70, 60); ctx.lineTo(100, 112); ctx.fill();
+    }),
+    makeCase('skinfig', ctx => {
+        ctx.fillStyle = '#111111'; ctx.fillRect(0, 0, 224, 224);
+        ctx.fillStyle = '#e0b090';
+        ctx.beginPath(); ctx.ellipse(112, 130, 55, 80, 0, 0, 7); ctx.fill();
+        ctx.beginPath(); ctx.arc(112, 50, 26, 0, 7); ctx.fill();
+        ctx.fillStyle = '#3b2a1e'; ctx.fillRect(86, 24, 52, 22);
+    }),
+];
+
+try {
+    log('loading litert...');
+    const liteRt = await loadLiteRt('./');
+    log('compiling model...');
+    const model = await liteRt.loadAndCompile('nsfw.tflite');
+    const inDet = model.getInputDetails()[0];
+    log('input: dtype=' + inDet.dtype + ' shape=' + JSON.stringify(Array.from(inDet.shape)));
+    log('output names: ' + JSON.stringify(Object.keys(model.getOutputDetails ? {} : {})));
+
+    for (const c of cases) {
+        for (const mode of ['raw', 'div255']) {
+            const bytes = rgbBytes(c.data);
+            let tensor;
+            if (inDet.dtype === 'float32') {
+                const f = new Float32Array(bytes.length);
+                if (mode === 'div255') { for (let i = 0; i < bytes.length; i++) f[i] = bytes[i] / 255.0; }
+                else { f.set(bytes); }
+                tensor = Tensor.fromTypedArray(f, [1, 224, 224, 3]);
+            } else {
+                tensor = Tensor.fromTypedArray(bytes, [1, 224, 224, 3]);
+            }
+            const outputs = await model.run(tensor);
+            const key = Object.keys(outputs)[0];
+            const res = Array.from(await outputs[key].data()).map(Number);
+            let probs = res, note = '';
+            if (res.some(v => v > 1)) { probs = softmax(res); note = 'logits->softmax'; }
+            const sum = probs.reduce((a, b) => a + b, 0);
+            const argmax = probs.indexOf(Math.max(...probs));
+            log(`RESULT ${c.name} ${mode} out=[${res.map(x => x.toFixed(3)).join(',')}] ${note} probs=[${probs.map(x => x.toFixed(3)).join(',')}] sum=${sum.toFixed(3)} argmax=${argmax}`);
+            tensor.delete();
+            for (const k in outputs) outputs[k].delete();
+        }
+    }
+    log('DONE');
+} catch (e) {
+    log('ERROR: ' + (e && (e.stack || e.message || String(e))));
+}
+</script>
+</body>
+</html>

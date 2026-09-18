@@ -2,6 +2,7 @@
 const ADMIN_PASSWORD = "admin123";
 
 const showRatingsCheck = document.getElementById('showRatings');
+const skinFilterCheck = document.getElementById('skinFilter');
 const blurAllCheck = document.getElementById('blurAll');
 const adminModeBtn = document.getElementById('adminMode');
 const sensitivityRange = document.getElementById('sensitivity');
@@ -17,8 +18,9 @@ function getSensitivityLabel(val) {
 }
 
 // Initial load
-chrome.storage.local.get(['showRatings', 'blurAll', 'adminUnlocked', 'sensitivity', 'scannedCount', 'blockedCount'], (res) => {
+chrome.storage.local.get(['showRatings', 'skinFilter', 'blurAll', 'adminUnlocked', 'sensitivity', 'scannedCount', 'blockedCount'], (res) => {
     showRatingsCheck.checked = res.showRatings !== false;
+    skinFilterCheck.checked = !!res.skinFilter;
     blurAllCheck.checked = !!res.blurAll;
 
     const sens = res.sensitivity ?? 4;
@@ -44,6 +46,10 @@ chrome.storage.onChanged.addListener((changes) => {
 // Settings handlers
 showRatingsCheck.onchange = () => {
     chrome.storage.local.set({ showRatings: showRatingsCheck.checked });
+};
+
+skinFilterCheck.onchange = () => {
+    chrome.storage.local.set({ skinFilter: skinFilterCheck.checked });
 };
 
 blurAllCheck.onchange = () => {
