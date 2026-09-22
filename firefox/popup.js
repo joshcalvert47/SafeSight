@@ -1,14 +1,23 @@
 // popup.js
-const ADMIN_PASSWORD = "admin123";
+// SHA-256 of the admin password — not reversible from the source alone.
+// Change the password by replacing this hash, e.g.:
+// node -e "console.log(require('crypto').createHash('sha256').update('newpass').digest('hex'))"
+const ADMIN_PASSWORD_HASH = "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9"; // "admin123"
 
 const showRatingsCheck = document.getElementById('showRatings');
 const skinFilterCheck = document.getElementById('skinFilter');
 const blurAllCheck = document.getElementById('blurAll');
 const adminModeBtn = document.getElementById('adminMode');
+const resetStatsBtn = document.getElementById('resetStats');
 const sensitivityRange = document.getElementById('sensitivity');
 const sensitivityVal = document.getElementById('sensitivityVal');
 const statScanned = document.getElementById('statScanned');
 const statBlocked = document.getElementById('statBlocked');
+
+async function sha256Hex(text) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 function getSensitivityLabel(val) {
     val = parseInt(val);
@@ -65,18 +74,34 @@ sensitivityRange.onchange = () => {
     chrome.storage.local.set({ sensitivity: parseInt(sensitivityRange.value) });
 };
 
-adminModeBtn.onclick = () => {
-    chrome.storage.local.get(['adminUnlocked'], (res) => {
-        if (res.adminUnlocked) return;
+adminModeBtn.onclick = async () => {
+    const stored = await chrome.storage.local.get(['adminUnlocked']);
+    if (stored.adminUnlocked) return;
 
-        const pass = prompt("Enter Admin Password:");
-        if (pass === ADMIN_PASSWORD) {
-            chrome.storage.local.set({ adminUnlocked: true });
-            adminModeBtn.innerText = "Admin Settings Unlocked";
-            adminModeBtn.style.background = "rgba(34, 197, 94, 0.1)";
-            adminModeBtn.style.color = "#22c55e";
-        } else if (pass !== null) {
-            alert("Incorrect Password");
-        }
-    });
+    const pass = prompt("Enter Admin Password:");
+    if (pass === null) return;
+
+    const hash = await sha256Hex(pass);
+    if (hash === ADMIN_PASSWORD_HASH) {
+        chrome.storage.local.set({ adminUnlocked: true });
+        adminModeBtn.innerText = "Admin Settings Unlocked";
+        adminModeBtn.style.background = "rgba(34, 197, 94, 0.1)";
+        adminModeBtn.style.color = "#22c55e";
+    } else {
+        alert("Incorrect Password");
+    }
 };
+
+// Stats reset (admin mode feature)
+if (resetStatsBtn) {
+    resetStatsBtn.onclick = async () => {
+        const stored = await chrome.storage.local.get(['adminUnlocked']);
+        if (!stored.adminUnlocked) {
+            alert("Unlock Admin Mode first.");
+            return;
+        }
+        chrome.runtime.sendMessage({ type: 'RESET_STATS' });
+        statScanned.innerText = 0;
+        statBlocked.innerText = 0;
+    };
+}

@@ -1,11 +1,13 @@
 {
     "manifest_version": 3,
     "name": "SafeSight",
-    "version": "1.0",
+    "version": "1.1",
     "description": "Fast and secure AI-powered image filtering using persistent LiteRT engine.",
     "permissions": [
         "storage",
-        "offscreen"
+        "offscreen",
+        "contextMenus",
+        "tabs"
     ],
     "host_permissions": [
         "<all_urls>"
@@ -34,7 +36,8 @@
             "js": [
                 "content.js"
             ],
-            "run_at": "document_start"
+            "run_at": "document_start",
+            "all_frames": true
         }
     ],
     "content_security_policy": {

@@ -40,14 +40,16 @@ chrome.runtime.onMessage.addListener(async (message) => {
         if (!readyModel) await initializeModel('./nsfw.tflite');
 
         const { payload, id, tabId } = message;
-            if (!payload || !payload.data || payload.data.length === 0) {
-                throw new Error("Received empty image data payload.");
-            }
+        if (!payload || !payload.data || payload.data.length === 0) {
+            throw new Error("Received empty image data payload.");
+        }
 
-            const inputData = new Uint8Array(payload.data);
-            if (inputData.length !== 150528) {
-                throw new Error(`Data size mismatch: Expected 150528, got ${inputData.length}`);
-            }
+        // payload.data arrives as a plain array (extension messaging is
+        // JSON-only in Chrome, typed arrays do not survive the trip).
+        const inputData = new Uint8Array(payload.data);
+        if (inputData.length !== 150528) {
+            throw new Error(`Data size mismatch: Expected 150528, got ${inputData.length}`);
+        }
 
             const inputDetails = readyModel.getInputDetails()[0];
             let inputTensor;
@@ -83,8 +85,6 @@ chrome.runtime.onMessage.addListener(async (message) => {
             if (neutral > 0.85 && score < 2) score = 0;
             score = Math.max(0, Math.min(10, Math.round(score)));
 
-            console.log('NSFW model output sample:', values.slice(0, 5), 'riskScore:', score);
-
             chrome.runtime.sendMessage({
                 type: 'AI_RESULT_OFFSCREEN',
                 id,
@@ -97,7 +97,6 @@ chrome.runtime.onMessage.addListener(async (message) => {
 
     } catch (e) {
         console.error("Offscreen Analysis Error:", e);
-
         // Never leave an image permanently blocked if analysis cannot complete.
         if (message.id !== undefined && message.tabId !== undefined) {
             chrome.runtime.sendMessage({

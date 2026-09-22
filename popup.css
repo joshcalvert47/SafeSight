@@ -221,6 +221,17 @@ input:checked+.slider:before {
     color: white;
 }
 
+.admin-btn-secondary {
+    background: rgba(148, 163, 184, 0.1);
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.admin-btn-secondary:hover {
+    background: rgba(148, 163, 184, 0.2);
+    color: var(--text);
+}
+
 .footer {
     text-align: center;
     margin-top: 16px;

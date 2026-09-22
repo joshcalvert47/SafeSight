@@ -1,0 +1,913 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 110;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		2372AA1230628BDE00ED6C0B /* SafeSight Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2372AA1130628BDE00ED6C0B /* SafeSight Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		2372AA1C30628BDE00ED6C0B /* SafeSight Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2372AA1B30628BDE00ED6C0B /* SafeSight Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		2372AA1330628BDE00ED6C0B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2372A9D830628BDC00ED6C0B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2372AA1030628BDE00ED6C0B;
+			remoteInfo = "SafeSight Extension (iOS)";
+		};
+		2372AA1D30628BDE00ED6C0B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2372A9D830628BDC00ED6C0B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 2372AA1A30628BDE00ED6C0B;
+			remoteInfo = "SafeSight Extension (macOS)";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		2372AA4430628BDE00ED6C0B /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = PlugIns;
+			files = (
+				2372AA1230628BDE00ED6C0B /* SafeSight Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+		};
+		2372AA4E30628BDE00ED6C0B /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			dstPath = "";
+			dstSubfolder = PlugIns;
+			files = (
+				2372AA1C30628BDE00ED6C0B /* SafeSight Extension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		2372A9F430628BDE00ED6C0B /* SafeSight.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SafeSight.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2372AA0630628BDE00ED6C0B /* SafeSight.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SafeSight.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2372AA1130628BDE00ED6C0B /* SafeSight Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "SafeSight Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+		2372AA1B30628BDE00ED6C0B /* SafeSight Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "SafeSight Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		2372AA3F30628BDE00ED6C0B /* Exceptions for "Shared (App)" folder in "SafeSight (iOS)" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"/Localized: Resources/Main.html",
+				Assets.xcassets,
+				Resources/Icon.png,
+				Resources/Script.js,
+				Resources/Style.css,
+				ViewController.swift,
+			);
+			target = 2372A9F330628BDE00ED6C0B /* SafeSight (iOS) */;
+		};
+		2372AA4330628BDE00ED6C0B /* Exceptions for "iOS (Extension)" folder in "SafeSight Extension (iOS)" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 2372AA1030628BDE00ED6C0B /* SafeSight Extension (iOS) */;
+		};
+		2372AA4830628BDE00ED6C0B /* Exceptions for "iOS (App)" folder in "SafeSight (iOS)" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 2372A9F330628BDE00ED6C0B /* SafeSight (iOS) */;
+		};
+		2372AA4930628BDE00ED6C0B /* Exceptions for "Shared (App)" folder in "SafeSight (macOS)" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"/Localized: Resources/Main.html",
+				Assets.xcassets,
+				Resources/Icon.png,
+				Resources/Script.js,
+				Resources/Style.css,
+				ViewController.swift,
+			);
+			target = 2372AA0530628BDE00ED6C0B /* SafeSight (macOS) */;
+		};
+		2372AA4D30628BDE00ED6C0B /* Exceptions for "macOS (Extension)" folder in "SafeSight Extension (macOS)" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 2372AA1A30628BDE00ED6C0B /* SafeSight Extension (macOS) */;
+		};
+		2372AA5230628BDE00ED6C0B /* Exceptions for "Shared (Extension)" folder in "SafeSight Extension (iOS)" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Resources/_locales,
+				Resources/background.js,
+				Resources/content.js,
+				Resources/icon.png,
+				Resources/images,
+				Resources/litert.js,
+				Resources/litert_wasm_compat_internal.js,
+				Resources/litert_wasm_compat_internal.wasm,
+				Resources/litert_wasm_internal.js,
+				Resources/litert_wasm_internal.wasm,
+				Resources/litert_wasm_utils.js,
+				Resources/manifest.json,
+				Resources/nsfw.tflite,
+				Resources/popup.css,
+				Resources/popup.html,
+				Resources/popup.js,
+				SafariWebExtensionHandler.swift,
+			);
+			target = 2372AA1030628BDE00ED6C0B /* SafeSight Extension (iOS) */;
+		};
+		2372AA5330628BDE00ED6C0B /* Exceptions for "Shared (Extension)" folder in "SafeSight Extension (macOS)" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Resources/_locales,
+				Resources/background.js,
+				Resources/content.js,
+				Resources/icon.png,
+				Resources/images,
+				Resources/litert.js,
+				Resources/litert_wasm_compat_internal.js,
+				Resources/litert_wasm_compat_internal.wasm,
+				Resources/litert_wasm_internal.js,
+				Resources/litert_wasm_internal.wasm,
+				Resources/litert_wasm_utils.js,
+				Resources/manifest.json,
+				Resources/nsfw.tflite,
+				Resources/popup.css,
+				Resources/popup.html,
+				Resources/popup.js,
+				SafariWebExtensionHandler.swift,
+			);
+			target = 2372AA1A30628BDE00ED6C0B /* SafeSight Extension (macOS) */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		2372A9DC30628BDC00ED6C0B /* Shared (App) */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				2372AA3F30628BDE00ED6C0B /* Exceptions for "Shared (App)" folder in "SafeSight (iOS)" target */,
+				2372AA4930628BDE00ED6C0B /* Exceptions for "Shared (App)" folder in "SafeSight (macOS)" target */,
+			);
+			path = "Shared (App)";
+			sourceTree = "<group>";
+		};
+		2372A9E530628BDE00ED6C0B /* Shared (Extension) */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				2372AA5230628BDE00ED6C0B /* Exceptions for "Shared (Extension)" folder in "SafeSight Extension (iOS)" target */,
+				2372AA5330628BDE00ED6C0B /* Exceptions for "Shared (Extension)" folder in "SafeSight Extension (macOS)" target */,
+			);
+			explicitFolders = (
+				Resources/_locales,
+				Resources/images,
+			);
+			path = "Shared (Extension)";
+			sourceTree = "<group>";
+		};
+		2372A9F630628BDE00ED6C0B /* iOS (App) */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				2372AA4830628BDE00ED6C0B /* Exceptions for "iOS (App)" folder in "SafeSight (iOS)" target */,
+			);
+			path = "iOS (App)";
+			sourceTree = "<group>";
+		};
+		2372AA0730628BDE00ED6C0B /* macOS (App) */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "macOS (App)";
+			sourceTree = "<group>";
+		};
+		2372AA1530628BDE00ED6C0B /* iOS (Extension) */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				2372AA4330628BDE00ED6C0B /* Exceptions for "iOS (Extension)" folder in "SafeSight Extension (iOS)" target */,
+			);
+			path = "iOS (Extension)";
+			sourceTree = "<group>";
+		};
+		2372AA1F30628BDE00ED6C0B /* macOS (Extension) */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				2372AA4D30628BDE00ED6C0B /* Exceptions for "macOS (Extension)" folder in "SafeSight Extension (macOS)" target */,
+			);
+			path = "macOS (Extension)";
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		2372A9F130628BDE00ED6C0B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		2372AA0330628BDE00ED6C0B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		2372AA0E30628BDE00ED6C0B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+		2372AA1830628BDE00ED6C0B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			files = (
+			);
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		2372A9D730628BDC00ED6C0B = {
+			isa = PBXGroup;
+			children = (
+				2372A9DC30628BDC00ED6C0B /* Shared (App) */,
+				2372A9E530628BDE00ED6C0B /* Shared (Extension) */,
+				2372A9F630628BDE00ED6C0B /* iOS (App) */,
+				2372AA0730628BDE00ED6C0B /* macOS (App) */,
+				2372AA1530628BDE00ED6C0B /* iOS (Extension) */,
+				2372AA1F30628BDE00ED6C0B /* macOS (Extension) */,
+				2372A9F530628BDE00ED6C0B /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		2372A9F530628BDE00ED6C0B /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				2372A9F430628BDE00ED6C0B /* SafeSight.app */,
+				2372AA0630628BDE00ED6C0B /* SafeSight.app */,
+				2372AA1130628BDE00ED6C0B /* SafeSight Extension.appex */,
+				2372AA1B30628BDE00ED6C0B /* SafeSight Extension.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		2372A9F330628BDE00ED6C0B /* SafeSight (iOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2372AA4530628BDE00ED6C0B /* Build configuration list for PBXNativeTarget "SafeSight (iOS)" */;
+			buildPhases = (
+				2372A9F030628BDE00ED6C0B /* Sources */,
+				2372A9F130628BDE00ED6C0B /* Frameworks */,
+				2372A9F230628BDE00ED6C0B /* Resources */,
+				2372AA4430628BDE00ED6C0B /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				2372AA1430628BDE00ED6C0B /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				2372A9F630628BDE00ED6C0B /* iOS (App) */,
+			);
+			name = "SafeSight (iOS)";
+			productName = "SafeSight (iOS)";
+			productReference = 2372A9F430628BDE00ED6C0B /* SafeSight.app */;
+			productType = "com.apple.product-type.application";
+		};
+		2372AA0530628BDE00ED6C0B /* SafeSight (macOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2372AA4F30628BDE00ED6C0B /* Build configuration list for PBXNativeTarget "SafeSight (macOS)" */;
+			buildPhases = (
+				2372AA0230628BDE00ED6C0B /* Sources */,
+				2372AA0330628BDE00ED6C0B /* Frameworks */,
+				2372AA0430628BDE00ED6C0B /* Resources */,
+				2372AA4E30628BDE00ED6C0B /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				2372AA1E30628BDE00ED6C0B /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				2372AA0730628BDE00ED6C0B /* macOS (App) */,
+			);
+			name = "SafeSight (macOS)";
+			productName = "SafeSight (macOS)";
+			productReference = 2372AA0630628BDE00ED6C0B /* SafeSight.app */;
+			productType = "com.apple.product-type.application";
+		};
+		2372AA1030628BDE00ED6C0B /* SafeSight Extension (iOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2372AA4030628BDE00ED6C0B /* Build configuration list for PBXNativeTarget "SafeSight Extension (iOS)" */;
+			buildPhases = (
+				2372AA0D30628BDE00ED6C0B /* Sources */,
+				2372AA0E30628BDE00ED6C0B /* Frameworks */,
+				2372AA0F30628BDE00ED6C0B /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				2372AA1530628BDE00ED6C0B /* iOS (Extension) */,
+			);
+			name = "SafeSight Extension (iOS)";
+			productName = "SafeSight Extension (iOS)";
+			productReference = 2372AA1130628BDE00ED6C0B /* SafeSight Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		2372AA1A30628BDE00ED6C0B /* SafeSight Extension (macOS) */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2372AA4A30628BDE00ED6C0B /* Build configuration list for PBXNativeTarget "SafeSight Extension (macOS)" */;
+			buildPhases = (
+				2372AA1730628BDE00ED6C0B /* Sources */,
+				2372AA1830628BDE00ED6C0B /* Frameworks */,
+				2372AA1930628BDE00ED6C0B /* Resources */,
+			);
+			buildRules = (
+			);
+			fileSystemSynchronizedGroups = (
+				2372AA1F30628BDE00ED6C0B /* macOS (Extension) */,
+			);
+			name = "SafeSight Extension (macOS)";
+			productName = "SafeSight Extension (macOS)";
+			productReference = 2372AA1B30628BDE00ED6C0B /* SafeSight Extension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		2372A9D830628BDC00ED6C0B /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2700;
+				LastUpgradeCheck = 2700;
+				TargetAttributes = {
+					2372A9F330628BDE00ED6C0B = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					2372AA0530628BDE00ED6C0B = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					2372AA1030628BDE00ED6C0B = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					2372AA1A30628BDE00ED6C0B = {
+						CreatedOnToolsVersion = 27.0;
+					};
+				};
+			};
+			buildConfigurationList = 2372A9DB30628BDC00ED6C0B /* Build configuration list for PBXProject "SafeSight" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 2372A9D730628BDC00ED6C0B;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 2372A9F530628BDE00ED6C0B /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				2372A9F330628BDE00ED6C0B /* SafeSight (iOS) */,
+				2372AA0530628BDE00ED6C0B /* SafeSight (macOS) */,
+				2372AA1030628BDE00ED6C0B /* SafeSight Extension (iOS) */,
+				2372AA1A30628BDE00ED6C0B /* SafeSight Extension (macOS) */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		2372A9F230628BDE00ED6C0B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		2372AA0430628BDE00ED6C0B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		2372AA0F30628BDE00ED6C0B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+		2372AA1930628BDE00ED6C0B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			files = (
+			);
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		2372A9F030628BDE00ED6C0B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+		2372AA0230628BDE00ED6C0B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+		2372AA0D30628BDE00ED6C0B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+		2372AA1730628BDE00ED6C0B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			files = (
+			);
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		2372AA1430628BDE00ED6C0B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2372AA1030628BDE00ED6C0B /* SafeSight Extension (iOS) */;
+			targetProxy = 2372AA1330628BDE00ED6C0B /* PBXContainerItemProxy */;
+		};
+		2372AA1E30628BDE00ED6C0B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 2372AA1A30628BDE00ED6C0B /* SafeSight Extension (macOS) */;
+			targetProxy = 2372AA1D30628BDE00ED6C0B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		2372AA4130628BDE00ED6C0B /* Debug configuration for PBXNativeTarget "SafeSight Extension (iOS)" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "SafeSight Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight.Extension;
+				PRODUCT_NAME = "SafeSight Extension";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		2372AA4230628BDE00ED6C0B /* Release configuration for PBXNativeTarget "SafeSight Extension (iOS)" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "SafeSight Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight.Extension;
+				PRODUCT_NAME = "SafeSight Extension";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		2372AA4630628BDE00ED6C0B /* Debug configuration for PBXNativeTarget "SafeSight (iOS)" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = SafeSight;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight;
+				PRODUCT_NAME = SafeSight;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		2372AA4730628BDE00ED6C0B /* Release configuration for PBXNativeTarget "SafeSight (iOS)" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "iOS (App)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = SafeSight;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
+				INFOPLIST_KEY_UIMainStoryboardFile = Main;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight;
+				PRODUCT_NAME = SafeSight;
+				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		2372AA4B30628BDE00ED6C0B /* Debug configuration for PBXNativeTarget "SafeSight Extension (macOS)" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "SafeSight Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight.Extension;
+				PRODUCT_NAME = "SafeSight Extension";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		2372AA4C30628BDE00ED6C0B /* Release configuration for PBXNativeTarget "SafeSight Extension (macOS)" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "macOS (Extension)/Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = "SafeSight Extension";
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight.Extension;
+				PRODUCT_NAME = "SafeSight Extension";
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		2372AA5030628BDE00ED6C0B /* Debug configuration for PBXNativeTarget "SafeSight (macOS)" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = SafeSight;
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight;
+				PRODUCT_NAME = SafeSight;
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		2372AA5130628BDE00ED6C0B /* Release configuration for PBXNativeTarget "SafeSight (macOS)" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = SafeSight;
+				INFOPLIST_KEY_NSMainStoryboardFile = Main;
+				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 12.0;
+				MARKETING_VERSION = 1.0;
+				OTHER_LDFLAGS = (
+					"-framework",
+					SafariServices,
+					"-framework",
+					WebKit,
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight;
+				PRODUCT_NAME = SafeSight;
+				REGISTER_APP_GROUPS = YES;
+				SDKROOT = macosx;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		2372AA5430628BDE00ED6C0B /* Debug configuration for PBXProject "SafeSight" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		2372AA5530628BDE00ED6C0B /* Release configuration for PBXProject "SafeSight" */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		2372A9DB30628BDC00ED6C0B /* Build configuration list for PBXProject "SafeSight" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2372AA5430628BDE00ED6C0B /* Debug configuration for PBXProject "SafeSight" */,
+				2372AA5530628BDE00ED6C0B /* Release configuration for PBXProject "SafeSight" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		2372AA4030628BDE00ED6C0B /* Build configuration list for PBXNativeTarget "SafeSight Extension (iOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2372AA4130628BDE00ED6C0B /* Debug configuration for PBXNativeTarget "SafeSight Extension (iOS)" */,
+				2372AA4230628BDE00ED6C0B /* Release configuration for PBXNativeTarget "SafeSight Extension (iOS)" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		2372AA4530628BDE00ED6C0B /* Build configuration list for PBXNativeTarget "SafeSight (iOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2372AA4630628BDE00ED6C0B /* Debug configuration for PBXNativeTarget "SafeSight (iOS)" */,
+				2372AA4730628BDE00ED6C0B /* Release configuration for PBXNativeTarget "SafeSight (iOS)" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		2372AA4A30628BDE00ED6C0B /* Build configuration list for PBXNativeTarget "SafeSight Extension (macOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2372AA4B30628BDE00ED6C0B /* Debug configuration for PBXNativeTarget "SafeSight Extension (macOS)" */,
+				2372AA4C30628BDE00ED6C0B /* Release configuration for PBXNativeTarget "SafeSight Extension (macOS)" */,
+			);
+			defaultConfigurationName = Release;
+		};
+		2372AA4F30628BDE00ED6C0B /* Build configuration list for PBXNativeTarget "SafeSight (macOS)" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				2372AA5030628BDE00ED6C0B /* Debug configuration for PBXNativeTarget "SafeSight (macOS)" */,
+				2372AA5130628BDE00ED6C0B /* Release configuration for PBXNativeTarget "SafeSight (macOS)" */,
+			);
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 2372A9D830628BDC00ED6C0B /* Project object */;
+	validationLevel = 1;
+}
