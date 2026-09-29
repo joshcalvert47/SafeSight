@@ -1,0 +1,689 @@
+/* SafeSight — app home screen (shared iOS / macOS) */
+
+* {
+    -webkit-user-select: none;
+    -webkit-user-drag: none;
+    cursor: default;
+    box-sizing: border-box;
+}
+
+:root {
+    color-scheme: light dark;
+
+    --spacing: 20px;
+    --bg: #0f172a;
+    --bg-glow: rgba(99, 102, 241, 0.25);
+    --card: rgba(30, 41, 59, 0.9);
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --border: rgba(255, 255, 255, 0.08);
+    --primary: #6366f1;
+    --primary-2: #8b5cf6;
+    --primary-soft: rgba(99, 102, 241, 0.16);
+    --shadow: rgba(2, 6, 23, 0.35);
+
+    /* Dashboard status colours (light values are overridden below). */
+    --ok: #22c55e;
+    --warn: #f59e0b;
+}
+
+@media (prefers-color-scheme: light) {
+    :root {
+        --bg: #f4f6fb;
+        --bg-glow: rgba(99, 102, 241, 0.16);
+        --card: #ffffff;
+        --text: #0f172a;
+        --muted: #5b6478;
+        --border: rgba(15, 23, 42, 0.08);
+        --primary-soft: rgba(99, 102, 241, 0.1);
+        --shadow: rgba(15, 23, 42, 0.1);
+
+        --ok: #15803d;
+        --warn: #b45309;
+    }
+}
+
+html {
+    height: 100%;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 100vh;
+
+    margin: 0;
+    background-color: var(--bg);
+    background-image: radial-gradient(110% 55% at 50% 0%, var(--bg-glow), transparent 65%);
+    background-repeat: no-repeat;
+
+    color: var(--text);
+    font: -apple-system-short-body;
+    text-align: center;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------------------------------------------------------------------
+   Visibility rules — platform & extension state (keep in sync with Script.js)
+   --------------------------------------------------------------------------- */
+
+body:not(.platform-mac, .platform-ios) :is(.platform-mac, .platform-ios) {
+    display: none;
+}
+
+body.platform-ios .platform-mac {
+    display: none;
+}
+
+body.platform-mac .platform-ios {
+    display: none;
+}
+
+body:not(.state-on, .state-off) :is(.state-on, .state-off) {
+    display: none;
+}
+
+body.state-on :is(.state-off, .state-unknown) {
+    display: none;
+}
+
+body.state-off :is(.state-on, .state-unknown) {
+    display: none;
+}
+
+/* ---------------------------------------------------------------------------
+   Layout
+   --------------------------------------------------------------------------- */
+
+.shell {
+    width: 100%;
+    max-width: 440px;
+    margin: 0 auto;
+    padding:
+        max(28px, env(safe-area-inset-top))
+        max(var(--spacing), env(safe-area-inset-right))
+        max(28px, env(safe-area-inset-bottom))
+        max(var(--spacing), env(safe-area-inset-left));
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Hero */
+
+.hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.badge {
+    width: 104px;
+    height: 104px;
+    padding: 10px;
+    border-radius: 28px;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    box-shadow: 0 16px 40px rgba(99, 102, 241, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.badge img {
+    display: block;
+    border-radius: 18px;
+}
+
+h1 {
+    margin: 6px 0 0;
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, var(--text) 25%, var(--primary));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+}
+
+.tagline {
+    margin: 0;
+    max-width: 32ch;
+    color: var(--muted);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.chips {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.chip {
+    padding: 4px 10px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--primary-soft);
+    color: var(--primary);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+/* Card */
+
+.card {
+    padding: 16px 18px;
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--card);
+    box-shadow: 0 12px 32px var(--shadow);
+    text-align: left;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+.card-title {
+    margin-bottom: 10px;
+    font-size: 0.98rem;
+    font-weight: 600;
+}
+
+.status {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+.steps {
+    margin: 0;
+    padding-left: 20px;
+    color: var(--muted);
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+.steps li {
+    margin-bottom: 8px;
+    padding-left: 2px;
+}
+
+.steps li:last-child {
+    margin-bottom: 0;
+}
+
+.steps strong {
+    color: var(--text);
+    font-weight: 600;
+}
+
+/* ---------------------------------------------------------------------------
+   Dashboard (iOS home screen) — status hero, stat tiles, facts, setup card
+   --------------------------------------------------------------------------- */
+
+.dash {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    text-align: left;
+}
+
+.section-label {
+    padding-left: 4px;
+    color: var(--muted);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.icon {
+    display: block;
+    width: 20px;
+    height: 20px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* Status hero */
+
+.dash-status {
+    --state-from: #64748b;
+    --state-to: #475569;
+    --state-shadow: rgba(71, 85, 105, 0.28);
+
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    overflow: hidden;
+
+    border-radius: 22px;
+    background-image: linear-gradient(135deg, var(--state-from), var(--state-to));
+    box-shadow: 0 16px 34px var(--state-shadow);
+    color: #ffffff;
+}
+
+.dash-status::before {
+    content: "";
+    position: absolute;
+    top: -70px;
+    right: -40px;
+    width: 190px;
+    height: 190px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.24), transparent 68%);
+    pointer-events: none;
+}
+
+.dash-status[data-state="active"] {
+    --state-from: #22c55e;
+    --state-to: #0d9488;
+    --state-shadow: rgba(13, 148, 136, 0.28);
+}
+
+.dash-status[data-state="attention"] {
+    --state-from: #f59e0b;
+    --state-to: #d97706;
+    --state-shadow: rgba(217, 119, 6, 0.28);
+}
+
+.dash-orb {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+}
+
+.dash-orb .icon {
+    width: 26px;
+    height: 26px;
+}
+
+.dash-status-copy {
+    min-width: 0;
+}
+
+.dash-pill {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.dash-status-copy h2 {
+    margin: 6px 0 0;
+    font-size: 1.12rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: #ffffff;
+}
+
+.dash-status-copy p {
+    margin: 2px 0 0;
+    color: rgba(255, 255, 255, 0.86);
+    font-size: 0.82rem;
+    line-height: 1.45;
+}
+
+/* Stat tiles */
+
+.stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.tile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 12px 6px;
+
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--card);
+    box-shadow: 0 8px 22px var(--shadow);
+    text-align: center;
+}
+
+.tile-icon {
+    width: 16px;
+    height: 16px;
+    color: var(--primary);
+}
+
+.tile-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+}
+
+.tile-label {
+    color: var(--muted);
+    font-size: 0.68rem;
+    font-weight: 600;
+}
+
+/* Facts */
+
+.facts {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow: hidden;
+
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    background: var(--card);
+    box-shadow: 0 8px 22px var(--shadow);
+}
+
+.fact {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+}
+
+.fact + .fact {
+    border-top: 1px solid var(--border);
+}
+
+.fact-label {
+    font-size: 0.86rem;
+    font-weight: 500;
+}
+
+.fact-value {
+    color: var(--muted);
+    font-size: 0.86rem;
+    font-weight: 600;
+}
+
+.fact-value.is-on {
+    color: var(--ok);
+}
+
+.fact-value.is-off {
+    color: var(--muted);
+}
+
+/* Remaining setup items — hidden once everything is configured */
+
+.setup {
+    padding: 14px 16px;
+    border: 1px dashed var(--primary);
+    border-radius: 16px;
+    background: var(--primary-soft);
+}
+
+.setup[hidden] {
+    display: none;
+}
+
+.setup-title {
+    margin-bottom: 8px;
+    color: var(--primary);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.setup-steps {
+    margin: 0;
+    padding-left: 18px;
+    color: var(--muted);
+    font-size: 0.82rem;
+    line-height: 1.5;
+}
+
+.setup-steps li + li {
+    margin-top: 6px;
+}
+
+/* ---------------------------------------------------------------------------
+   Compact hero on iOS — the app opens straight into the dashboard.
+   --------------------------------------------------------------------------- */
+
+body.platform-ios .shell {
+    gap: 14px;
+    padding-top: max(18px, env(safe-area-inset-top));
+}
+
+body.platform-ios .badge {
+    width: 84px;
+    height: 84px;
+    padding: 12px;
+    border-radius: 24px;
+}
+
+body.platform-ios .badge img {
+    width: 60px;
+    height: 60px;
+    border-radius: 15px;
+}
+
+body.platform-ios h1 {
+    font-size: 1.6rem;
+}
+
+/* Actions */
+
+.actions {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* On iOS the two entry points are side-by-side action cards. */
+
+.actions.platform-ios {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.action {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px;
+
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--card);
+    color: var(--text);
+    box-shadow: 0 10px 26px var(--shadow);
+}
+
+.action-icon {
+    display: grid;
+    place-items: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+    background: var(--primary-soft);
+    color: var(--primary);
+}
+
+.action-icon .icon {
+    width: 18px;
+    height: 18px;
+}
+
+.action-title {
+    display: block;
+    font-size: 0.95rem;
+    font-weight: 600;
+}
+
+.action-sub {
+    display: block;
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 500;
+    line-height: 1.35;
+}
+
+button.action.block-apps {
+    border-color: transparent;
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    box-shadow: 0 16px 32px rgba(99, 102, 241, 0.35);
+}
+
+button.action.block-apps .action-icon {
+    background: rgba(255, 255, 255, 0.22);
+    color: #ffffff;
+}
+
+button.action.block-apps .action-sub {
+    color: rgba(255, 255, 255, 0.82);
+}
+
+button {
+    width: 100%;
+    padding: 13px 18px;
+    border: none;
+    border-radius: 14px;
+    /* Inherit the exact font from the body — the old
+       `font-family: -apple-system-short-body` value is only valid in the
+       `font` shorthand, so it was dropped and buttons fell back to the
+       UA default typeface on iOS. */
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+button:active {
+    transform: scale(0.98);
+}
+
+button.block-apps {
+    color: #ffffff;
+    background: linear-gradient(135deg, var(--primary), var(--primary-2));
+    box-shadow: 0 10px 24px rgba(99, 102, 241, 0.35);
+}
+
+button.block-apps:active {
+    opacity: 0.85;
+}
+
+button.secondary,
+button.open-preferences {
+    background: var(--card);
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+
+button.secondary:active,
+button.open-preferences:active {
+    opacity: 0.7;
+}
+
+/* Footer */
+
+.hint {
+    margin: 2px 0 0;
+    color: var(--muted);
+    font-size: 0.72rem;
+    opacity: 0.85;
+}
+
+/* ---------------------------------------------------------------------------
+   Motion — subtle entrance + a "live" pulse on the status orb. Both respect
+   the system Reduce Motion setting.
+   --------------------------------------------------------------------------- */
+
+@keyframes safeSightRise {
+    from {
+        opacity: 0;
+        transform: translate3d(0, 10px, 0);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes safeSightPulse {
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.4);
+    }
+
+    50% {
+        box-shadow: 0 0 0 9px transparent;
+    }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+
+    .hero,
+    .dash > *,
+    .actions {
+        animation: safeSightRise 0.5s cubic-bezier(0.22, 0.68, 0.32, 1) both;
+    }
+
+    .hero {
+        animation-delay: 0.02s;
+    }
+
+    .dash > *:nth-child(1) {
+        animation-delay: 0.06s;
+    }
+
+    .dash > *:nth-child(2) {
+        animation-delay: 0.1s;
+    }
+
+    .dash > *:nth-child(3) {
+        animation-delay: 0.14s;
+    }
+
+    .dash > *:nth-child(4) {
+        animation-delay: 0.18s;
+    }
+
+    .dash > *:nth-child(5) {
+        animation-delay: 0.22s;
+    }
+
+    .actions {
+        animation-delay: 0.26s;
+    }
+
+    .dash-status[data-state="active"] .dash-orb {
+        animation: safeSightPulse 2.8s ease-in-out infinite;
+    }
+}

@@ -52,7 +52,10 @@
                 "litert_wasm_internal.wasm",
                 "litert_wasm_compat_internal.js",
                 "litert_wasm_compat_internal.wasm",
-                "nsfw.tflite"
+                "nsfw.tflite",
+                "blocked.html",
+                "blocked.js",
+                "blocklist.json"
             ],
             "matches": [
                 "<all_urls>"

@@ -1,0 +1,545 @@
+/* popup.css — SafeSight Safari extension popup
+ *
+ * Safari sizes an extension popup from this document, so the layout has to be
+ * content-driven:
+ *   - a centered, content-width layout with automatic height (no height/max-height
+ *     in vh units — the popup viewport is itself derived from the content, so a
+ *     vh cap collapses the popup to almost nothing),
+ *   - never `overflow: hidden` on html/body, or the popup can't scroll when the
+ *     content exceeds Safari's maximum popup height,
+ *   - no flex children with `min-height: 0`, which squash cards to zero height
+ *     and make controls overlap.
+ * Only the blocked-sites list scrolls on its own.
+ */
+
+:root {
+    color-scheme: dark;
+
+    --primary: #6366f1;
+    --primary-hover: #4f46e5;
+    --bg: #0f172a;
+    --card-bg: #1e293b;
+    --text: #f1f5f9;
+    --text-muted: #94a3b8;
+    --danger: #ef4444;
+    --success: #22c55e;
+    --line: rgba(255, 255, 255, 0.05);
+    --line-strong: #334155;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    width: 100%;
+    background: var(--bg);
+}
+
+body {
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+    padding: 12px;
+
+    background: var(--bg);
+    color: var(--text);
+    /* System font: extension pages shouldn't depend on a remote webfont. */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.4;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------------------------------------------------------------------
+   Header
+   --------------------------------------------------------------------------- */
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+/* The app icon is the popup's logo, on the same gradient tile the app's home
+   screen puts it on (the artwork itself is a transparent-background mark). */
+.logo-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    padding: 3px;
+    border-radius: 7px;
+    background: linear-gradient(135deg, var(--primary), #a855f7);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.logo-icon img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+}
+
+/* ---------------------------------------------------------------------------
+   Stats
+   --------------------------------------------------------------------------- */
+
+.stats-container {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.stat-box {
+    flex: 1;
+    min-width: 0;
+    padding: 8px;
+    text-align: center;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.05rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--primary);
+}
+
+.stat-label {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Card
+   --------------------------------------------------------------------------- */
+
+.status-card {
+    padding: 12px;
+    margin-bottom: 10px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--card-bg);
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.control-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 0;
+    gap: 12px;
+}
+
+/* Sensitivity row: label above the slider. */
+.control-item--stacked {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.control-item--stacked .label-info {
+    margin-bottom: 8px;
+}
+
+.label-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.label-info span:first-child {
+    font-size: 0.88rem;
+    font-weight: 500;
+}
+
+.label-info span:last-child {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Toggle switch
+   --------------------------------------------------------------------------- */
+
+.switch {
+    position: relative;
+    display: inline-block;
+    flex-shrink: 0;
+    width: 44px;
+    height: 24px;
+}
+
+.switch input {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+}
+
+.slider {
+    position: absolute;
+    inset: 0;
+    cursor: pointer;
+    border-radius: 24px;
+    background-color: var(--line-strong);
+    transition: background-color 0.3s ease;
+}
+
+.slider:before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    bottom: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background-color: #fff;
+    transition: transform 0.3s ease;
+}
+
+input:checked + .slider {
+    background-color: var(--primary);
+}
+
+input:checked + .slider:before {
+    transform: translateX(20px);
+}
+
+.switch input:focus-visible + .slider {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+   Sensitivity slider
+   --------------------------------------------------------------------------- */
+
+.range-container {
+    width: 100%;
+}
+
+.sensitivity-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 5px;
+    background: var(--line-strong);
+    outline: none;
+}
+
+.sensitivity-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+}
+
+.range-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 3px;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Blocked sites — only this list scrolls
+   --------------------------------------------------------------------------- */
+
+.blocklist-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+}
+
+.blocklist-row {
+    display: flex;
+    gap: 8px;
+}
+
+.blocklist-row input {
+    flex: 1;
+    min-width: 0;
+    padding: 7px 10px;
+    border: 1px solid var(--line-strong);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.85rem;
+    outline: none;
+}
+
+.blocklist-row input:focus {
+    border-color: var(--primary);
+}
+
+.blocklist-add {
+    flex-shrink: 0;
+    padding: 7px 12px;
+    border: none;
+    border-radius: 8px;
+    background: var(--primary);
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.blocklist-add:hover {
+    background: var(--primary-hover);
+}
+
+.blocklist {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 96px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.blocklist:empty {
+    display: none;
+}
+
+.blocklist li {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.blocklist-site {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.82rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.blocklist-tag {
+    flex-shrink: 0;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.15);
+    color: var(--text-muted);
+    font-size: 0.6rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.blocklist-remove {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.blocklist-remove:hover {
+    background: var(--danger);
+    color: #fff;
+}
+
+.blocklist-note {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Admin
+   --------------------------------------------------------------------------- */
+
+.admin-section {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+}
+
+.admin-btn {
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 8px;
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.admin-btn:hover {
+    background: var(--danger);
+    color: #fff;
+}
+
+.admin-btn-secondary {
+    background: rgba(148, 163, 184, 0.1);
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.admin-btn-secondary:hover {
+    background: rgba(148, 163, 184, 0.2);
+    color: var(--text);
+}
+
+/* ---------------------------------------------------------------------------
+   Status summary — shown alongside the editable controls on every platform,
+   so the user always sees a compact "what am I enforcing right now" readout.
+   --------------------------------------------------------------------------- */
+
+.status-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.status-dot {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--line-strong);
+    box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.15);
+}
+
+.status-dot.is-on {
+    background: var(--success);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+}
+
+.status-title {
+    font-size: 0.88rem;
+    font-weight: 600;
+}
+
+.status-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.status-list li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 0.82rem;
+    color: var(--text-muted);
+}
+
+.status-value {
+    color: var(--text);
+    font-weight: 600;
+    text-align: right;
+}
+
+.status-note {
+    margin: 12px 0 0;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+    font-size: 0.72rem;
+    line-height: 1.45;
+    color: var(--text-muted);
+}
+
+.status-note strong {
+    color: var(--text);
+}
+
+/* ---------------------------------------------------------------------------
+   Footer
+   --------------------------------------------------------------------------- */
+
+.footer {
+    margin-top: 8px;
+    text-align: center;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Platform split
+
+   popup.js adds `platform-ios` or `platform-mac` to <body> as soon as it knows
+   which side it's on. On iOS the editable controls live in the app's Web
+   Filter tab, so the popup keeps only the live status summary; macOS still
+   edits them here. Both panels start hidden (rather than flashing on iOS
+   before the class lands) and are revealed only for their own platform.
+   --------------------------------------------------------------------------- */
+
+.only-ios,
+.only-mac {
+    display: none;
+}
+
+.options-only {
+    display: none;
+}
+
+.platform-ios .only-ios {
+    display: inline;
+}
+
+.platform-mac .only-mac {
+    display: inline;
+}
+
+.platform-mac .options-only {
+    display: block;
+}

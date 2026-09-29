@@ -1,0 +1,52 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function mine() {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    // ---- account: own doc only (profile + hashed PIN) ----
+    match /users/{uid} {
+      allow get, list: if signedIn() && request.auth.uid == uid;
+
+      // First sign-in: create only your own doc, with role pinned to
+      // "user" — there is no admin/parent role any more.
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.role == 'user'
+        && request.resource.data.uid == uid
+        && request.resource.data.pinHash is string
+        && request.resource.data.pinSalt is string
+        && request.resource.data.keys().hasOnly([
+          'uid', 'email', 'name', 'picture', 'role',
+          'pinHash', 'pinSalt', 'pinUpdatedAt',
+          'createdAt', 'lastSeen'
+        ]);
+
+      // role/uid are immutable; the PIN and parent PIN can be rotated by the
+      // owner (parent PIN fields may also be deleted on disable).
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'email', 'name', 'picture', 'lastSeen',
+          'pinHash', 'pinSalt', 'pinUpdatedAt',
+          'parentPinHash', 'parentPinSalt', 'parentPinUpdatedAt'
+        ])
+        && (!('role' in request.resource.data.diff(resource.data).affectedKeys())
+            || request.resource.data.role == 'user');
+
+      allow delete: if signedIn() && request.auth.uid == uid;
+    }
+
+    // Everything else: deny (default is deny; explicit for clarity).
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

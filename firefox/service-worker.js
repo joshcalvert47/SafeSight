@@ -122,6 +122,104 @@ async function handleFetchImage(url, sendResponse) {
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Site blocklist — hard navigation block.
+// Defaults ship in blocklist.json (refreshed into storage on wake); user edits
+// live in blocklistUser / blocklistRemoved. A host matches a list entry exactly
+// or as a subdomain (sub.example.com matches example.com).
+// ---------------------------------------------------------------------------
+const BLOCKLIST_KEYS = ['blocklistDefaults', 'blocklistUser', 'blocklistRemoved'];
+let blocklistSetCache = null;
+
+function normalizeSite(entry) {
+    if (typeof entry !== 'string') return null;
+    let s = entry.trim().toLowerCase();
+    if (!s) return null;
+    s = s.replace(/^[a-z][a-z0-9+.-]*:\/\//, '').split(/[\/?#]/)[0];
+    s = s.split('@').pop().split(':')[0];
+    s = s.replace(/^\*\.?/, '').replace(/^www\./, '').replace(/\.$/, '');
+    return s.includes('.') ? s : null;
+}
+
+async function loadDefaultBlocklistFile() {
+    try {
+        const resp = await fetch(chrome.runtime.getURL('blocklist.json'));
+        const data = await resp.json();
+        const list = Array.isArray(data) ? data : ((data && data.sites) || []);
+        const sites = [];
+        list.forEach((entry) => {
+            const s = normalizeSite(entry);
+            if (s && !sites.includes(s)) sites.push(s);
+        });
+        return sites;
+    } catch (e) {
+        return [];
+    }
+}
+
+async function seedBlocklistDefaults() {
+    const sites = await loadDefaultBlocklistFile();
+    if (!sites.length) return;
+    const res = await chrome.storage.local.get(['blocklistDefaults']);
+    if (JSON.stringify(res.blocklistDefaults || []) !== JSON.stringify(sites)) {
+        await chrome.storage.local.set({ blocklistDefaults: sites });
+    }
+}
+
+async function getEffectiveBlocklist() {
+    if (blocklistSetCache) return blocklistSetCache;
+    const res = await chrome.storage.local.get(BLOCKLIST_KEYS);
+    const defaults = Array.isArray(res.blocklistDefaults) ? res.blocklistDefaults : await loadDefaultBlocklistFile();
+    const removed = new Set(Array.isArray(res.blocklistRemoved) ? res.blocklistRemoved : []);
+    const user = Array.isArray(res.blocklistUser) ? res.blocklistUser : [];
+    blocklistSetCache = new Set([...defaults.filter((s) => !removed.has(s)), ...user]);
+    return blocklistSetCache;
+}
+
+async function isUrlBlocked(url) {
+    try {
+        const u = new URL(url);
+        if (u.protocol !== 'http:' && u.protocol !== 'https:') return false;
+        const host = u.hostname.replace(/^www\./, '');
+        const list = await getEffectiveBlocklist();
+        for (const site of list) {
+            if (host === site || host.endsWith('.' + site)) return true;
+        }
+    } catch (e) { /* invalid URL */ }
+    return false;
+}
+
+function blockedPageUrl(url, site) {
+    return chrome.runtime.getURL('blocked.html') +
+        '?url=' + encodeURIComponent(url || '') +
+        '&site=' + encodeURIComponent(site || '');
+}
+
+chrome.storage.onChanged.addListener((changes) => {
+    if (BLOCKLIST_KEYS.some((key) => changes[key])) blocklistSetCache = null;
+});
+
+// Enforce at navigation start — also covers hosts where the content script
+// does not run (e.g. manifest exclude_matches).
+try {
+    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+        if (!changeInfo || changeInfo.status !== 'loading') return;
+        const url = changeInfo.url || (tab && tab.url);
+        if (!url || !/^https?:/.test(url)) return;
+        isUrlBlocked(url).then((blocked) => {
+            if (!blocked) return;
+            let site = '';
+            try { site = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { }
+            try {
+                chrome.tabs.update(tabId, { url: blockedPageUrl(url, site) }, () => void chrome.runtime.lastError);
+            } catch (e) { /* tabs API unavailable */ }
+        }).catch(() => { });
+    });
+} catch (e) { /* tabs.onUpdated unavailable */ }
+
+// Refresh cached defaults from blocklist.json (compare-guarded write).
+seedBlocklistDefaults().catch(() => { });
+
 // Message router
 // ---------------------------------------------------------------------------
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -149,6 +247,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }
         })();
         return true;
+    }
+
+    if (message.type === 'BLOCK_SITE_NAV') {
+        // The content script found this tab's host on the block list. Navigate
+        // it ourselves: extension-initiated navigation is allowed in every
+        // browser (page-initiated jumps to extension pages are not).
+        if (sender.tab && typeof sender.tab.id === 'number') {
+            try {
+                chrome.tabs.update(sender.tab.id, { url: blockedPageUrl(message.url, message.site) }, () => void chrome.runtime.lastError);
+            } catch (e) { /* tabs API unavailable */ }
+        }
+        sendResponse({ ok: true });
+        return;
     }
 
     if (message.type === 'FETCH_IMAGE') {

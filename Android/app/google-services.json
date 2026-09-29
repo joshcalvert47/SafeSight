@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "816580635380",
+    "project_id": "safesight-3b61f",
+    "storage_bucket": "safesight-3b61f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:816580635380:android:5ff308fd42a908e64f8ca1",
+        "android_client_info": {
+          "package_name": "com.joshc.safesight"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA5v1xxJGrEiAeDpQhaVtqFAPD4B9ru7z0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

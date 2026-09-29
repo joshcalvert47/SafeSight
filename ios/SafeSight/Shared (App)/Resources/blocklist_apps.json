@@ -1,0 +1,84 @@
+{
+    "description": "Recommended apps for SafeSight. Screen Time (Family Controls) does the iOS blocking, but its tokens only come from the system FamilyActivityPicker, so this file cannot block by itself: setup and the Limits tab look it up to detect installed entries (via \"scheme\") and suggest names to search for in the picker. Entries with tier \"default\" are auto-blocked on Android, entries with tier \"optional\" are recommendation-only there. \"ios\" is the informational bundle id, \"android\" the Android package name (keep both copies of this file in sync).",
+    "enabled": true,
+    "apps": [
+        {
+            "name": "Grindr",
+            "tier": "default",
+            "android": "com.grindr.android",
+            "scheme": "grindr"
+        },
+        {
+            "name": "Tinder",
+            "tier": "default",
+            "android": "com.tinder",
+            "ios": "com.tinder",
+            "scheme": "tinder"
+        },
+        {
+            "name": "Bumble",
+            "tier": "default",
+            "android": "com.bumble.app",
+            "scheme": "bumble"
+        },
+        {
+            "name": "Hinge",
+            "tier": "default",
+            "android": "co.hinge.app",
+            "ios": "co.hinge.app",
+            "scheme": "hinge"
+        },
+        {
+            "name": "Scruff",
+            "tier": "default",
+            "android": "com.scruff.scruff",
+            "scheme": "scruff"
+        },
+        {
+            "name": "Kik",
+            "tier": "default",
+            "android": "gui.kik.android",
+            "scheme": "kik"
+        },
+        {
+            "name": "Reddit",
+            "tier": "optional",
+            "android": "com.reddit.frontpage",
+            "scheme": "reddit"
+        },
+        {
+            "name": "X",
+            "tier": "optional",
+            "android": "com.twitter.android",
+            "ios": "com.atebits.Tweetie2",
+            "scheme": "twitter"
+        },
+        {
+            "name": "Discord",
+            "tier": "optional",
+            "android": "com.discord",
+            "ios": "com.hammerandchisel.discord",
+            "scheme": "discord"
+        },
+        {
+            "name": "Telegram",
+            "tier": "optional",
+            "android": "org.telegram.messenger",
+            "ios": "ru.keepcoder.telegram",
+            "scheme": "tg"
+        },
+        {
+            "name": "Snapchat",
+            "tier": "optional",
+            "android": "com.snapchat.android",
+            "ios": "com.toyopagroup.picaboo",
+            "scheme": "snapchat"
+        },
+        {
+            "name": "Imgur",
+            "tier": "optional",
+            "android": "com.imgur.imgur",
+            "scheme": "imgur"
+        }
+    ]
+}

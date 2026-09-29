@@ -1,0 +1,14 @@
+name = "safesight-admin"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# Create the database first:
+#   wrangler d1 create safesight
+# paste its database_id below, then create the tables:
+#   wrangler d1 execute safesight --file=schema.sql --remote
+# and deploy:
+#   wrangler deploy
+[[d1_databases]]
+binding = "DB"
+database_name = "safesight"
+database_id = "<YOUR_D1_DATABASE_ID>"

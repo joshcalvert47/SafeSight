@@ -1,0 +1,17 @@
+{
+    "description": "Same default blocklist the Safari extension ships with (Shared (Extension)/Resources/blocklist.json). Keep both copies in sync — Safari enforces these locked defaults; the iOS app never lists them (it only reports how many there are).",
+    "sites": [
+        "pornhub.com",
+        "xvideos.com",
+        "xnxx.com",
+        "xhamster.com",
+        "redtube.com",
+        "youporn.com",
+        "tube8.com",
+        "spankbang.com",
+        "beeg.com",
+        "bangbros.com",
+        "brazzers.com",
+        "tnaflix.com"
+    ]
+}

@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+
+    <link rel="stylesheet" href="../Style.css">
+    <script src="../Script.js" defer></script>
+    <title>SafeSight</title>
+</head>
+
+<body>
+    <main class="shell">
+        <header class="hero">
+            <div class="badge">
+                <img src="../Icon.png" width="84" height="84" alt="SafeSight Icon">
+            </div>
+            <h1>SafeSight</h1>
+            <p class="tagline">On-device AI image filtering, site blocking and app blocking — powered by LiteRT.</p>
+            <div class="chips">
+                <span class="chip">NSFW filter</span>
+                <span class="chip">Block sites</span>
+                <span class="chip">Block apps</span>
+            </div>
+        </header>
+
+        <!--
+            iOS dashboard. Everything here is filled in by showDashboard() from
+            ViewController once the app group has been read; the markup carries
+            neutral placeholders so the layout never jumps.
+        -->
+        <section class="dash platform-ios">
+            <div class="dash-status" id="statusCard" data-state="paused">
+                <div class="dash-orb">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 2.75 4.5 5.7v5.9c0 4.5 3.1 8.6 7.5 9.7 4.4-1.1 7.5-5.2 7.5-9.7V5.7L12 2.75Z" />
+                    </svg>
+                </div>
+                <div class="dash-status-copy">
+                    <span class="dash-pill" id="statusPill">Checking</span>
+                    <h2 id="statusTitle">Protection</h2>
+                    <p id="statusSubtitle">Reading your protection state…</p>
+                </div>
+            </div>
+
+            <div class="section-label">Activity</div>
+
+            <div class="stats">
+                <div class="tile">
+                    <svg class="icon tile-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M2.75 12S6.3 5.75 12 5.75 21.25 12 21.25 12 17.7 18.25 12 18.25 2.75 12 2.75 12Z" />
+                        <circle cx="12" cy="12" r="2.75" />
+                    </svg>
+                    <span class="tile-value" id="statScanned">0</span>
+                    <span class="tile-label">Scanned</span>
+                </div>
+                <div class="tile">
+                    <svg class="icon tile-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="12" cy="12" r="8.75" />
+                        <path d="m5.85 5.85 12.3 12.3" />
+                    </svg>
+                    <span class="tile-value" id="statBlocked">0</span>
+                    <span class="tile-label">Blocked</span>
+                </div>
+                <div class="tile">
+                    <svg class="icon tile-icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="12" cy="12" r="8.75" />
+                        <path d="M3.4 9.3h17.2M3.4 14.7h17.2" />
+                        <path d="M12 3.25c2.6 2.7 2.6 14.8 0 17.5-2.6-2.7-2.6-14.8 0-17.5Z" />
+                    </svg>
+                    <span class="tile-value" id="statSites">–</span>
+                    <span class="tile-label">Blocked sites</span>
+                </div>
+            </div>
+
+            <ul class="facts">
+                <li class="fact">
+                    <span class="fact-label">App blocking</span>
+                    <span class="fact-value" id="factApps">—</span>
+                </li>
+                <li class="fact">
+                    <span class="fact-label">Safari filters</span>
+                    <span class="fact-value" id="factFilters">—</span>
+                </li>
+            </ul>
+
+            <div class="setup" id="setupCard" hidden>
+                <div class="setup-title">Finish setup</div>
+                <ol class="setup-steps" id="setupSteps"></ol>
+            </div>
+        </section>
+
+        <!-- macOS keeps the Safari extension state card. -->
+        <section class="card platform-mac">
+            <div class="card-title">Safari Extension</div>
+            <p class="status platform-mac state-unknown">You can turn on SafeSight’s extension in Safari Extensions preferences.</p>
+            <p class="status platform-mac state-on">SafeSight’s extension is currently on. You can turn it off in Safari Extensions preferences.</p>
+            <p class="status platform-mac state-off">SafeSight’s extension is currently off. You can turn it on in Safari Extensions preferences.</p>
+        </section>
+
+        <div class="actions platform-ios">
+            <button type="button" class="action block-apps">
+                <span class="action-icon">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M12 2.75 4.5 5.7v5.9c0 4.5 3.1 8.6 7.5 9.7 4.4-1.1 7.5-5.2 7.5-9.7V5.7L12 2.75Z" />
+                    </svg>
+                </span>
+                <span class="action-copy">
+                    <span class="action-title">Block Apps</span>
+                    <span class="action-sub">Apps, categories &amp; websites</span>
+                </span>
+            </button>
+
+            <button type="button" class="action block-sites">
+                <span class="action-icon">
+                    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M4 7h16M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7" />
+                        <path d="M6.5 7l.8 11.2A1.8 1.8 0 0 0 9.1 20h5.8a1.8 1.8 0 0 0 1.8-1.8L17.5 7" />
+                    </svg>
+                </span>
+                <span class="action-copy">
+                    <span class="action-title">Web Filter</span>
+                    <span class="action-sub">Filters, sensitivity &amp; lists</span>
+                </span>
+            </button>
+        </div>
+
+        <div class="actions platform-mac">
+            <button type="button" class="open-preferences">Quit and Open Safari Extensions Preferences…</button>
+        </div>
+
+        <footer class="hint">Protection keeps working after you close the app • Powered by LiteRT</footer>
+    </main>
+</body>
+
+</html>

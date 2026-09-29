@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeSight · On-device AI content safety</title>
+    <meta name="description" content="SafeSight scores and blurs explicit images on-device with a LiteRT model and blocks unwanted sites and apps on Chrome, Firefox, Safari and Android.">
+    <meta property="og:title" content="SafeSight · On-device AI content safety">
+    <meta property="og:description" content="On-device AI image filtering, site blocking, device-wide DNS protection and app blocking.">
+    <meta property="og:image" content="assets/icon.png">
+    <meta name="theme-color" content="#ffffff">
+    <link rel="icon" type="image/png" href="assets/icon-small.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Outfit:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4.5 12h14M13.5 6.5l5.5 5.5-5.5 5.5"/>
+    </symbol>
+    <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3.5v11M7.5 10.5L12 15l4.5-4.5"/><path d="M4 19.5h16"/>
+    </symbol>
+    <symbol id="i-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <path d="M4 7h16M4 12h16M4 17h16"/>
+    </symbol>
+    <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+        <path d="M6 6l12 12M18 6L6 18"/>
+    </symbol>
+</svg>
+
+<header class="site-header" id="top">
+    <div class="container header-inner">
+        <a class="brand" href="#top" aria-label="SafeSight home">
+            <img class="brand-mark" src="assets/icon-small.png" alt="" width="28" height="28">
+            <span>SafeSight</span>
+        </a>
+
+        <nav class="nav" id="site-nav" aria-label="Primary">
+            <a href="#features">Features</a>
+            <a href="#platforms">Platforms</a>
+            <a href="#how-it-works">How it works</a>
+            <a href="#privacy">Privacy</a>
+            <a href="#faq">FAQ</a>
+            <a class="btn btn-primary btn-sm nav-cta" href="#platforms">Get SafeSight</a>
+        </nav>
+
+        <button class="nav-toggle" id="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">
+            <svg class="icon-open" width="22" height="22"><use href="#i-menu"/></svg>
+            <svg class="icon-close" width="22" height="22"><use href="#i-x"/></svg>
+        </button>
+    </div>
+</header>
+
+<main>
+
+    <!-- Hero -->
+    <section class="hero">
+        <div class="container">
+            <p class="mono-label">On-device AI content safety</p>
+            <h1>Blur explicit images. Block unwanted sites and apps.</h1>
+            <p class="lead">
+                SafeSight scores every image on your device with a LiteRT model, blurs whatever
+                crosses your threshold, and blocks unwanted sites and apps. No image is ever
+                uploaded.
+            </p>
+            <div class="hero-actions">
+                <a class="btn btn-primary" href="#platforms">
+                    <svg width="16" height="16"><use href="#i-download"/></svg>
+                    Get SafeSight
+                </a>
+                <a class="btn btn-ghost" href="#how-it-works">How it works</a>
+            </div>
+            <p class="hero-platforms">
+                <a href="#platforms">Chrome</a><span>·</span>
+                <a href="#platforms">Firefox</a><span>·</span>
+                <a href="#platforms">Safari</a><span>·</span>
+                <a href="#platforms">Android</a>
+            </p>
+        </div>
+    </section>
+
+    <!-- Three things -->
+    <section class="section">
+        <div class="container cols3">
+            <div class="col reveal">
+                <h3>Explicit images, blurred</h3>
+                <p>A LiteRT model scores every image 0 to 10 before it renders. Anything above
+                    your sensitivity setting is blurred on your own device.</p>
+            </div>
+            <div class="col reveal">
+                <h3>Unwanted sites, blocked</h3>
+                <p>A curated blocklist plus your own domains. On Android, a local VPN makes
+                    blocked domains fail to resolve in every app.</p>
+            </div>
+            <div class="col reveal">
+                <h3>Apps, blocked</h3>
+                <p>On Android, chosen apps are covered by a shield the moment they open, until
+                    you unblock them with your PIN.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="section section-alt" id="features">
+        <div class="container split-head">
+            <div class="head reveal">
+                <h2>Built to stay out of the way</h2>
+                <p>Every layer is optional, PIN-protected, and driven by the same scoring engine.</p>
+            </div>
+            <div class="rows reveal">
+                <div class="row">
+                    <h3 class="row-term">On-device image filtering</h3>
+                    <p class="row-desc">Every image is drawn to a 224x224 canvas and scored locally.
+                        There is no upload path for pixels.</p>
+                </div>
+                <div class="row">
+                    <h3 class="row-term">Adjustable sensitivity</h3>
+                    <p class="row-desc">A 1 to 9 scale. Borderline images get a second, center-cropped
+                        measurement and the two verdicts are averaged.</p>
+                </div>
+                <div class="row">
+                    <h3 class="row-term">Blur-all and skin overlay</h3>
+                    <p class="row-desc">Blanket-blur every image without the model, or veil flagged
+                        regions instead of hiding the whole picture.</p>
+                </div>
+                <div class="row">
+                    <h3 class="row-term">Site blocking</h3>
+                    <p class="row-desc">Curated defaults plus your own domains, subdomains included.
+                        Blocked pages land on an interstitial.</p>
+                </div>
+                <div class="row">
+                    <h3 class="row-term">Device-wide DNS firewall <span class="tag">Android</span></h3>
+                    <p class="row-desc">A local VPN answers DNS for the whole device, so blocked domains
+                        fail everywhere. Web traffic is never proxied or logged.</p>
+                </div>
+                <div class="row">
+                    <h3 class="row-term">App blocking <span class="tag">Android</span></h3>
+                    <p class="row-desc">A foreground-aware accessibility shield covers blocked apps the
+                        instant they open.</p>
+                </div>
+                <div class="row">
+                    <h3 class="row-term">One account, one PIN</h3>
+                    <p class="row-desc">Each account covers one device. Turning filters off or removing
+                        blocks requires the PIN, checked server-side with lockout.</p>
+                </div>
+                <div class="row">
+                    <h3 class="row-term">Statistics</h3>
+                    <p class="row-desc">Images scanned and blocked, tracked per device and synced to
+                        your account.</p>
+                </div>
+                <div class="row">
+                    <h3 class="row-term">Fail-open</h3>
+                    <p class="row-desc">If the model can't run, the image is revealed rather than
+                        locking the page.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Platforms -->
+    <section class="section" id="platforms">
+        <div class="container">
+            <div class="section-head reveal">
+                <h2>Four platforms, one account</h2>
+                <p>One registration, one PIN, on every platform you use.</p>
+            </div>
+
+            <div class="platforms reveal">
+                <div class="platform-row">
+                    <div class="platform-name">
+                        <h3>Chrome</h3>
+                        <span class="mono-label">Manifest V3</span>
+                    </div>
+                    <p class="platform-desc">Content-script filtering with a persistent LiteRT worker
+                        and offscreen analysis.</p>
+                    <!-- TODO: replace with the Chrome Web Store listing URL -->
+                    <a class="text-link" href="#" data-store="chrome">Add to Chrome <svg width="14" height="14"><use href="#i-arrow"/></svg></a>
+                </div>
+                <div class="platform-row">
+                    <div class="platform-name">
+                        <h3>Firefox</h3>
+                        <span class="mono-label">WebExtension</span>
+                    </div>
+                    <p class="platform-desc">Image analysis, site blocking and PIN-guarded settings on
+                        the shared codebase.</p>
+                    <!-- TODO: replace with the Firefox Add-ons listing URL -->
+                    <a class="text-link" href="#" data-store="firefox">Get for Firefox <svg width="14" height="14"><use href="#i-arrow"/></svg></a>
+                </div>
+                <div class="platform-row">
+                    <div class="platform-name">
+                        <h3>Safari</h3>
+                        <span class="mono-label">macOS and iOS</span>
+                    </div>
+                    <p class="platform-desc">Native integration with the same on-device model, plus
+                        app blocking on iOS.</p>
+                    <!-- TODO: replace with the App Store listing URL -->
+                    <a class="text-link" href="#" data-store="safari">Download for Safari <svg width="14" height="14"><use href="#i-arrow"/></svg></a>
+                </div>
+                <div class="platform-row">
+                    <div class="platform-name">
+                        <h3>Android <span class="tag">New</span></h3>
+                        <span class="mono-label">Native app</span>
+                    </div>
+                    <p class="platform-desc">A filtered browser plus a device-wide DNS firewall and an
+                        app shield, in Kotlin and Compose.</p>
+                    <!-- TODO: replace with the Google Play listing URL -->
+                    <a class="text-link" href="#" data-store="android">Get it on Google Play <svg width="14" height="14"><use href="#i-arrow"/></svg></a>
+                </div>
+            </div>
+
+            <p class="note reveal">Every account includes one device. Additional devices can be
+                added at any time as a paid add-on.</p>
+        </div>
+    </section>
+
+    <!-- How it works -->
+    <section class="section section-alt" id="how-it-works">
+        <div class="container split-head">
+            <div class="head reveal">
+                <h2>How it works</h2>
+                <p>Four steps, all of them on your own machine.</p>
+            </div>
+            <div class="rows reveal">
+                <div class="row row-step">
+                    <h3 class="row-term"><span class="row-idx">01</span> Observe</h3>
+                    <p class="row-desc">SafeSight watches for images as pages render, including new
+                        nodes, lazy loads and background images.</p>
+                </div>
+                <div class="row row-step">
+                    <h3 class="row-term"><span class="row-idx">02</span> Extract</h3>
+                    <p class="row-desc">Each image is drawn to a 224x224 canvas and reduced to raw
+                        RGB pixels. Cross-origin images go through an extension proxy.</p>
+                </div>
+                <div class="row row-step">
+                    <h3 class="row-term"><span class="row-idx">03</span> Infer</h3>
+                    <p class="row-desc">The model returns five class probabilities, combined into a
+                        single 0 to 10 score.</p>
+                </div>
+                <div class="row row-step">
+                    <h3 class="row-term"><span class="row-idx">04</span> Act</h3>
+                    <p class="row-desc">Below your threshold: revealed. Above it: blurred before first
+                        paint.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Privacy -->
+    <section class="section" id="privacy">
+        <div class="container split-head">
+            <div class="head reveal">
+                <h2>Private by architecture</h2>
+                <p>The design makes it impossible for the sensitive parts to leave.</p>
+            </div>
+            <div class="reveal">
+                <ul class="plain-list">
+                    <li>No image ever leaves your device. There is no upload path to disable.</li>
+                    <li>The account stores your email, device name and counters. Nothing else.</li>
+                    <li>The VPN handles only DNS. Web traffic never touches SafeSight.</li>
+                    <li>Every verdict is a number on a 0 to 10 scale, against a threshold you chose.</li>
+                </ul>
+                <dl class="facts">
+                    <div class="fact">
+                        <dt>Leaves your device</dt>
+                        <dd>email, device names, counters</dd>
+                    </div>
+                    <div class="fact">
+                        <dt>Never leaves your device</dt>
+                        <dd>image bytes, scores, thresholds</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section section-alt" id="faq">
+        <div class="container split-head">
+            <div class="head reveal">
+                <h2>Questions, answered</h2>
+            </div>
+            <div class="faq reveal">
+                <details>
+                    <summary>Do my images ever leave my device?<svg class="chev" width="15" height="15"><use href="#i-arrow"/></svg></summary>
+                    <p>No. The model runs locally, in an offscreen worker in the extensions and
+                        natively in the Android app. Image bytes are scored and discarded inside the
+                        same process.</p>
+                </details>
+                <details>
+                    <summary>How is the score calculated?<svg class="chev" width="15" height="15"><use href="#i-arrow"/></svg></summary>
+                    <p>The model outputs five class probabilities: neutral, drawing, hentai, porn and
+                        sexy. SafeSight combines the explicit classes into a weighted 0 to 10 score.
+                        Your sensitivity, from 1 to 9, is the threshold.</p>
+                </details>
+                <details>
+                    <summary>How many devices can I use?<svg class="chev" width="15" height="15"><use href="#i-arrow"/></svg></summary>
+                    <p>Every account includes one device, guarded by your PIN. Additional devices can
+                        be added at any time as a paid add-on.</p>
+                </details>
+                <details>
+                    <summary>Will it slow down my browsing?<svg class="chev" width="15" height="15"><use href="#i-arrow"/></svg></summary>
+                    <p>Analysis runs in a background worker with a small concurrency budget. Verdicts
+                        are cached per image URL and shared across duplicate images.</p>
+                </details>
+                <details>
+                    <summary>Can the Android firewall be bypassed?<svg class="chev" width="15" height="15"><use href="#i-arrow"/></svg></summary>
+                    <p>Apps using system DNS are covered. Apps that hard-code their own resolver or
+                        use DNS-over-HTTPS can escape it, an accepted limitation of any DNS-based
+                        filter, disclosed openly.</p>
+                </details>
+                <details>
+                    <summary>What stops someone from turning it off?<svg class="chev" width="15" height="15"><use href="#i-arrow"/></svg></summary>
+                    <p>Every protective change requires your account PIN, checked server-side with
+                        lockout after repeated wrong attempts.</p>
+                </details>
+            </div>
+        </div>
+    </section>
+
+</main>
+
+<footer class="site-footer">
+    <div class="container footer-grid">
+        <div class="footer-brand">
+            <a class="brand" href="#top">
+                <img class="brand-mark" src="assets/icon-small.png" alt="" width="28" height="28">
+                <span>SafeSight</span>
+            </a>
+            <p>AI content safety that runs where your images live, on your own device.</p>
+        </div>
+
+        <nav class="footer-col" aria-label="Product">
+            <h4>Product</h4>
+            <a href="#features">Features</a>
+            <a href="#platforms">Platforms</a>
+            <a href="#how-it-works">How it works</a>
+            <a href="#privacy">Privacy</a>
+        </nav>
+
+        <nav class="footer-col" aria-label="Help">
+            <h4>Help</h4>
+            <a href="#faq">FAQ</a>
+        </nav>
+
+        <nav class="footer-col" aria-label="Download">
+            <h4>Download</h4>
+            <a href="#" data-store="chrome">Chrome</a>
+            <a href="#" data-store="firefox">Firefox</a>
+            <a href="#" data-store="safari">Safari</a>
+            <a href="#" data-store="android">Android</a>
+        </nav>
+    </div>
+    <div class="container footer-bottom">
+        <span>&copy; <span id="year">2026</span> SafeSight</span>
+        <span class="mono-label">On-device ML · Zero image uploads · PIN-protected</span>
+    </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

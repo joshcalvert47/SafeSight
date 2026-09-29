@@ -1,5 +1,5 @@
 // content.js
-let config = { showRatings: true, skinFilter: false, blurAll: false, sensitivity: 4, blockedSites: [], allowedSites: [] };
+let config = { skinFilter: false, blurAll: false, sensitivity: 4, blockedSites: [], allowedSites: [], accountReady: false };
 const SKIN_COVERAGE_THRESHOLD = 0.12;
 const SCAN_TIMEOUT_MS = 5000; // Reveal if no verdict within 5s of the blur starting.
 const requestMap = new Map();
@@ -24,6 +24,81 @@ function isSiteBlocked() {
     const host = currentSiteHost();
     return config.blockedSites.some((site) => hostMatchesSite(host, site));
 }
+
+// 0. SITE BLOCKLIST — hard navigation block. Defaults ship in blocklist.json;
+// user additions/removals live in storage alongside them.
+const BLOCKLIST_KEYS = ['blocklistDefaults', 'blocklistUser', 'blocklistRemoved'];
+let blocklistDefaultsPromise = null;
+
+function normalizeSite(entry) {
+    if (typeof entry !== 'string') return null;
+    let s = entry.trim().toLowerCase();
+    if (!s) return null;
+    s = s.replace(/^[a-z][a-z0-9+.-]*:\/\//, '').split(/[\/?#]/)[0];
+    s = s.split('@').pop().split(':')[0];
+    s = s.replace(/^\*\.?/, '').replace(/^www\./, '').replace(/\.$/, '');
+    return s.includes('.') ? s : null;
+}
+
+function loadDefaultBlocklist() {
+    if (!blocklistDefaultsPromise) {
+        blocklistDefaultsPromise = fetch(chrome.runtime.getURL('blocklist.json'))
+            .then((r) => r.json())
+            .then((data) => {
+                const list = Array.isArray(data) ? data : ((data && data.sites) || []);
+                return list.map(normalizeSite).filter(Boolean);
+            })
+            .catch(() => {
+                blocklistDefaultsPromise = null;
+                return [];
+            });
+    }
+    return blocklistDefaultsPromise;
+}
+
+async function getEffectiveBlocklist() {
+    const stored = await new Promise((resolve) => chrome.storage.local.get(BLOCKLIST_KEYS, resolve));
+    const defaults = Array.isArray(stored.blocklistDefaults)
+        ? stored.blocklistDefaults
+        : await loadDefaultBlocklist();
+    const removed = new Set(Array.isArray(stored.blocklistRemoved) ? stored.blocklistRemoved : []);
+    const user = Array.isArray(stored.blocklistUser) ? stored.blocklistUser : [];
+    return [...new Set([...defaults.filter((s) => !removed.has(s)), ...user])];
+}
+
+function blockedPageUrl(url, site) {
+    return chrome.runtime.getURL('blocked.html') +
+        '?url=' + encodeURIComponent(url || '') +
+        '&site=' + encodeURIComponent(site || '');
+}
+
+async function enforceSiteBlock() {
+    try {
+        const account = await new Promise((resolve) => chrome.storage.local.get(['accountReady'], resolve));
+        if (!account || !account.accountReady) return;
+        if (!/^https?:$/.test(location.protocol)) return;
+        const host = location.hostname.replace(/^www\./, '');
+        if (!host) return;
+        const list = await getEffectiveBlocklist();
+        const isBlocked = list.some((site) => host === site || host.endsWith('.' + site));
+        if (!isBlocked) return;
+        if (window.top !== window) {
+            // Blocked subframe: blank it instead of replacing the whole tab.
+            location.replace('about:blank');
+            return;
+        }
+        // Main frame: ask the background to navigate so the redirect is
+        // extension-initiated (page-initiated jumps to extension pages are
+        // blocked in some browsers). Fall back to a self-redirect otherwise.
+        chrome.runtime.sendMessage({ type: 'BLOCK_SITE_NAV', url: location.href, site: host }, (resp) => {
+            if (chrome.runtime.lastError || !resp || !resp.ok) {
+                try { location.replace(blockedPageUrl(location.href, host)); } catch (e) { /* fail open */ }
+            }
+        });
+    } catch (e) { /* fail open */ }
+}
+
+enforceSiteBlock();
 
 // 1. GLOBAL BLUR STYLES
 const styleId = 'ai-filter-styles';
@@ -66,8 +141,8 @@ function updateGlobalBlur() {
 
 // 2. STORAGE SYNC
 function loadConfig() {
-    chrome.storage.local.get(['showRatings', 'skinFilter', 'blurAll', 'sensitivity', 'blockedSites', 'allowedSites'], (res) => {
-        config.showRatings = res.showRatings !== false;
+    chrome.storage.local.get(['skinFilter', 'blurAll', 'sensitivity', 'blockedSites', 'allowedSites', 'accountReady'], (res) => {
+        config.accountReady = !!res.accountReady;
         config.skinFilter = !!res.skinFilter;
         config.blurAll = !!res.blurAll;
         config.sensitivity = res.sensitivity ?? 4;
@@ -80,13 +155,15 @@ function loadConfig() {
 
 chrome.storage.onChanged.addListener((changes) => {
     if (changes.blurAll) config.blurAll = changes.blurAll.newValue;
-    if (changes.showRatings) config.showRatings = changes.showRatings.newValue;
     if (changes.skinFilter) config.skinFilter = changes.skinFilter.newValue;
     if (changes.sensitivity) config.sensitivity = changes.sensitivity.newValue;
+    if (changes.accountReady) config.accountReady = !!changes.accountReady.newValue;
     if (changes.blockedSites) config.blockedSites = Array.isArray(changes.blockedSites.newValue) ? changes.blockedSites.newValue : [];
     if (changes.allowedSites) config.allowedSites = Array.isArray(changes.allowedSites.newValue) ? changes.allowedSites.newValue : [];
-    siteFilteringEnabled = !isSiteBlocked() || isSiteAllowed();
+    if (changes.blocklistUser || changes.blocklistRemoved || changes.blocklistDefaults) enforceSiteBlock();
+    siteFilteringEnabled = config.accountReady && (!isSiteBlocked() || isSiteAllowed());
     updateGlobalBlur();
+    if (config.accountReady) start();
 });
 
 // 3. RESULT HANDLING
@@ -147,33 +224,17 @@ function applyVerdict(img, score, skinOverlay) {
     if (img.__aiTimer) { clearTimeout(img.__aiTimer); img.__aiTimer = null; }
     img.classList.add('ai-filter-target'); // ensure the verdict CSS applies
     img.dataset.aiChecked = "true";
-    if (config.showRatings) drawBadge(img, score);
     if (config.skinFilter) showSkinOverlay(img, skinOverlay);
 
     if (Number(score) >= config.sensitivity) {
         img.classList.add('ai-flagged');
         img.classList.remove('ai-safe');
-        // Admin reveal: click a flagged image to unblur just that one.
-        img.addEventListener('click', onAdminReveal, { once: true, capture: true });
     } else {
         img.classList.add('ai-safe');
         img.classList.remove('ai-flagged');
     }
 }
 
-// Admin-only click-to-reveal (requires adminUnlocked in storage).
-function onAdminReveal(event) {
-    event.preventDefault();
-    event.stopPropagation();
-    chrome.storage.local.get(['adminUnlocked'], (res) => {
-        const img = event.currentTarget;
-        if (res.adminUnlocked) {
-            img.classList.add('ai-safe');
-            img.classList.remove('ai-flagged');
-        }
-        img.removeEventListener('click', onAdminReveal, { capture: true });
-    });
-}
 
 // 4. IMAGE ACQUISITION
 // Try a direct canvas read first; if the image is cross-origin without CORS,
@@ -246,29 +307,6 @@ function getSource(img) {
     return src || null;
 }
 
-function drawBadge(img, score) {
-    const color = score >= 7 ? "#ff4444" : (score >= 4 ? "#ffbb33" : "#00C851");
-    const container = (img.tagName === 'IMG') ? img.parentElement : img;
-    if (!container) return;
-
-    if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
-
-    const identifier = (img.src || img.getAttribute('data-src') || img.style.backgroundImage || "").slice(-15);
-    let badge = null;
-    try {
-        badge = container.querySelector(`.ai-badge[data-id="${CSS.escape(identifier)}"]`);
-    } catch (e) {
-        badge = container.querySelector('.ai-badge');
-    }
-    if (!badge) {
-        badge = document.createElement("div");
-        badge.className = "ai-badge";
-        badge.dataset.id = identifier;
-        container.appendChild(badge);
-    }
-    badge.innerText = score;
-    badge.style.cssText = `position:absolute; top:2px; right:2px; background:${color}; color:white; padding:2px 5px; border-radius:3px; font:bold 11px sans-serif; z-index:2147483647; pointer-events:none;`;
-}
 
 // 5. VERDICT CACHE
 // url -> { score } so SPA re-renders re-apply the old verdict instead of
@@ -318,7 +356,7 @@ const intersectionObserver = new IntersectionObserver((entries) => {
 }, { rootMargin: '400px' });
 
 async function processImage(img) {
-    if (!img || !siteFilteringEnabled) return;
+    if (!img || !config.accountReady || !siteFilteringEnabled) return;
 
     const src = getSource(img);
     // Only elements with an extractable URL are scannable. Never blur things
@@ -513,6 +551,7 @@ async function runAnalysis(img) {
 }
 
 function start() {
+    if (!config.accountReady) return;
     document.querySelectorAll('img, [style*="background-image"], [style*="url("]').forEach(processImage);
 }
 
@@ -521,7 +560,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 else start();
 
 const observer = new MutationObserver(m => {
-    if (config.blurAll) return;
+    if (!config.accountReady || config.blurAll) return;
     for (const record of m) {
         if (record.type === 'childList') {
             record.addedNodes.forEach(node => {

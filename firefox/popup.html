@@ -8,8 +8,12 @@
 
 <body>
     <div class="header">
-        <div class="logo-icon">🛡️</div>
+        <div class="logo-icon"><img src="icon.png" alt="SafeSight"></div>
         <h2>SafeSight</h2>
+    </div>
+
+    <div id="pendingBanner" style="display:none; margin:0 12px 8px; padding:8px 10px; border-radius:8px; background:rgba(249,115,22,.15); color:#fdba74; font-size:12px; line-height:1.35;">
+        ⏳ Waiting for admin approval — this device stays locked until the account is approved.
     </div>
 
     <div class="stats-container">
@@ -25,17 +29,6 @@
 
     <div class="status-card">
         <div class="control-group">
-            <div class="control-item">
-                <div class="label-info">
-                    <span>Show Ratings</span>
-                    <span>Display safety scores</span>
-                </div>
-                <label class="switch">
-                    <input type="checkbox" id="showRatings" checked>
-                    <span class="slider"></span>
-                </label>
-            </div>
-
             <div class="control-item">
                 <div class="label-info">
                     <span>Skin Filter</span>
@@ -73,9 +66,21 @@
             </div>
         </div>
 
+        <div class="blocklist-section">
+            <div class="label-info">
+                <span>Blocked Sites</span>
+                <span>Sites that can't be opened at all</span>
+            </div>
+            <div class="blocklist-row">
+                <input type="text" id="blockSiteInput" placeholder="example.com" spellcheck="false" autocomplete="off">
+                <button id="blockSiteAdd" class="blocklist-add">Add</button>
+            </div>
+            <ul id="blockSiteList" class="blocklist"></ul>
+            <div class="blocklist-note" id="blocklistNote">Defaults loaded from blocklist.json</div>
+        </div>
+
         <div class="admin-section">
-            <button id="adminMode" class="admin-btn">Unlock Admin Mode</button>
-            <button id="resetStats" class="admin-btn admin-btn-secondary" style="margin-top:8px;">Reset Statistics</button>
+            <button id="resetStats" class="admin-btn admin-btn-secondary">Reset Statistics</button>
         </div>
     </div>
 

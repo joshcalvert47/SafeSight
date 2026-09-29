@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">SafeSight</string>
+    <string name="accessibility_service_description">Watches which app is in the foreground and shows the SafeSight shield over apps you have chosen to block. SafeSight does not read your screen contents or keystrokes.</string>
+    <string name="shield_message">SafeSight\n\n%1$s is blocked on this device.</string>
+</resources>
