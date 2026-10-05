@@ -1,9 +1,8 @@
 # SafeSight Android — Implementation Plan
 
-Native Android port of SafeSight: an in-app filtered browser (ML image blur),
-device-wide domain blocking via a local VPN, and app blocking via an
-accessibility shield. Distributed on Google Play. Built into this Gradle
-scaffold (`com.joshc.safesight`, Kotlin + Jetpack Compose).
+Native Android port of SafeSight: an in-app filtered browser (ML image blur)
+and app blocking via an accessibility shield. Distributed on Google Play. Built
+into this Gradle scaffold (`com.joshc.safesight`, Kotlin + Jetpack Compose).
 
 ## Scope
 
@@ -11,7 +10,6 @@ scaffold (`com.joshc.safesight`, Kotlin + Jetpack Compose).
 |---|---|---|
 | Image ML blur | WebView injects `chrome/content.js` + a JS shim faking `chrome.storage`/`chrome.runtime`; `ANALYZE` → LiteRT → `AI_RESULT` via `evaluateJavascript` | `chrome/content.js` (near-unmodified), score math from `chrome/offscreen.js:80-86` |
 | CORS-free image proxy | OkHttp fetch behind the `FETCH_IMAGE` bridge | `chrome/service-worker.js` |
-| Site blocklist (device-wide) | `VpnService` + local DNS proxy: resolutions for `blocklist.json` sites (and subdomains) are sinkholed — covers Chrome and every other app | `chrome/blocklist.json`, `chrome/service-worker.js:205-232` |
 | Site blocklist (in-app) | `shouldOverrideUrlLoading` + local `blocked.html` page | same sources |
 | App blocking | `AccessibilityService` (`TYPE_WINDOW_STATE_CHANGED`) → `TYPE_ACCESSIBILITY_OVERLAY` shield | `safari/.../AppBlockingManager.swift` semantics |
 | PIN gate / account | `WorkerClient` on `/api/register`, `/api/verify`, `/api/unlock-request`, `/api/unlock-status` | `chrome/popup.js` (`ensureRegistered`, `guardDestructive`), `worker/worker.js` unchanged |
@@ -29,7 +27,6 @@ app/src/main/java/com/joshc/safesight/
 ├── browser/FilterWebView.kt          # phase 3
 ├── browser/ChromeShim.kt             # phase 3
 ├── block/BlocklistRepository.kt      # phase 4
-├── block/VpnService + DnsProxy       # phase 5
 ├── block/BlockAccessibilityService.kt # phase 6
 ├── data/SettingsStore.kt             # phase 1
 ├── net/WorkerClient.kt               # phase 1
@@ -60,22 +57,20 @@ app/src/main/assets/                  # nsfw.tflite, content.js, blocked.html, b
    `blocklistUser`/`blocklistRemoved`); in-app `blocked.html` interception.
    Shipped defaults remain locked (enforced but not removable), same as the
    extensions.
-5. **VPN** — `VpnService.prepare()` opt-in; TUN routes UDP/TCP 53 to a local
-   DNS proxy; blocked hosts (and their subdomains) sinkhole; settings toggle +
-   always-on recommendation; single source of truth = `BlocklistRepository`.
-6. **App blocking** — accessibility service watches the foreground package and
+5. **App blocking** — accessibility service watches the foreground package and
    raises a shield overlay for blocked apps; allow/block picker UI.
-7. **Play prep** — accessibility + local-VPN declarations, privacy policy,
+6. **Play prep** — accessibility declaration, privacy policy,
    data-safety form (email + deviceId go to the worker), AAB size check
    (~40 MB install with the model).
 
+The earlier plan for device-wide blocking via a local DNS VPN
+(`SafeSightVpnService`) was cut; site blocking stays inside the in-app
+browser, matching the iOS app after its DNS tunnel was removed.
+
 ## Risks / accepted limitations
 
-- **DoH bypass**: Private DNS / DoH overrides can escape DNS-level blocking.
-  Possible later hardening: sinkhole known DoH providers or sniff TLS SNI on
-  the TUN. DNS-proxy-only is the normal v1 for parental filters.
-- **Play review**: two declarations (accessibility, local VPN) — wording must
-  describe the parental/content-safety purpose precisely.
+- **Play review**: the accessibility declaration — wording must describe the
+  parental/content-safety purpose precisely.
 - **Device reach**: scaffold sets `minSdk 34`, excluding Android 13 and below.
   Revisit before launch (26 costs nothing).
 - Fail-open analysis (score 0) mirrors the extensions: a model error reveals

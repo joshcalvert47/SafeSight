@@ -4,10 +4,10 @@
 //
 //  Created by Josh Calvert on 24/09/2026.
 //
-//  The app shell (SafeSightTabView) and the Overview tab.
+//  The app shell (SafeSightTabView) and the Filter tab.
 //
 //  SafeSightTabView gates the whole app: Google sign-in → PIN hand-off →
-//  extension setup, then four tabs (Overview / Web / Limits / Settings).
+//  extension setup, then three tabs (Filter / Times / Settings).
 //  No Screen Time, no pairing, no parent mode — the child-device page is the
 //  whole app now.
 //
@@ -31,7 +31,7 @@ struct AppBlockingRootView: View {
 
     var body: some View {
         NavigationStack {
-            OverviewView()
+            FilterView()
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
                         Button("Done") { dismiss() }
@@ -42,7 +42,7 @@ struct AppBlockingRootView: View {
 }
 
 /// The native iOS app shell. Gating order: sign-in, then the one-time PIN
-/// hand-off, then the extension setup step; after that the four tabs.
+/// hand-off, then the extension setup step; after that the three tabs.
 struct SafeSightTabView: View {
     @ObservedObject private var account = AccountStore.shared
     @State private var setupCompleted = SetupProgress.isCompleted
@@ -72,24 +72,17 @@ struct SafeSightTabView: View {
         } else {
             TabView {
                 NavigationStack {
-                    OverviewView()
+                    FilterView()
                 }
                 .tabItem {
-                    Label("Overview", systemImage: "shield.lefthalf.filled")
+                    Label("Filter", systemImage: "line.3.horizontal.decrease.circle")
                 }
 
                 NavigationStack {
-                    ExtensionSettingsPage()
+                    TimesView()
                 }
                 .tabItem {
-                    Label("Web", systemImage: "safari")
-                }
-
-                NavigationStack {
-                    LimitsView()
-                }
-                .tabItem {
-                    Label("Limits", systemImage: "timer")
+                    Label("Times", systemImage: "clock")
                 }
 
                 NavigationStack {
@@ -136,58 +129,19 @@ private struct DashboardCard<Content: View>: View {
     }
 }
 
-/// Icon + title + optional count badge used at the top of a card.
-private struct CardHeader: View {
-    let icon: String
-    let title: String
-    var detail: String?
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(Palette.accent)
-                .frame(width: 26, height: 26)
-                .background(Palette.accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-            // Title gets priority and may wrap to two lines; the detail
-            // capsule can never wrap or push into the title — it scales
-            // down and truncates instead of overlapping.
-            Text(title)
-                .font(.subheadline.weight(.semibold))
-                .lineLimit(2)
-                .fixedSize(horizontal: false, vertical: true)
-                .layoutPriority(1)
-
-            Spacer(minLength: 8)
-
-            if let detail {
-                Text(detail)
-                    .font(.caption.weight(.semibold))
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Color.secondary.opacity(0.12), in: Capsule())
-            }
-        }
-    }
-}
-
-/// Compact count tile using the same system surfaces as the rest of iOS.
-/// Fixed height + non-wrapping, scale-to-fit text so all four tiles stay the
-/// same length/width no matter how big the numbers get.
+/// One counter in the status card: an accent icon, the count and its
+/// caption in an equal-width column, so the row spans the card edge to
+/// edge with no chip of its own. Fixed height keeps the row steady when
+/// a count gains or loses a digit.
 private struct StatTile: View {
     let count: Int
     let title: String
     let icon: String
 
     var body: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 3) {
             Image(systemName: icon)
-                .font(.system(size: 13, weight: .medium))
+                .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(Palette.accent)
 
             Text("\(count)")
@@ -204,21 +158,17 @@ private struct StatTile: View {
                 .minimumScaleFactor(0.7)
                 .multilineTextAlignment(.center)
         }
-        .frame(maxWidth: .infinity, minHeight: 74, maxHeight: 74)
-        .padding(.horizontal, 4)
-        .clipped()
-        .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .frame(maxWidth: .infinity, minHeight: 58, maxHeight: 58)
     }
 }
 
-// MARK: - Overview
+// MARK: - Filter
 
-/// The landing tab: one glance at what's protecting this device right now,
-/// with the pause control (PIN-gated) and a summary of the active limits.
-struct OverviewView: View {
+/// The Filter tab: protection status and counters at the top, then the
+/// app-blocking controls and the web-filter settings, in that order.
+struct FilterView: View {
     @StateObject private var settings = SharedSettings.shared
     @ObservedObject private var blocker = ScreenTimeBlocker.shared
-    @ObservedObject private var account = AccountStore.shared
     @State private var pinGate: PinGate?
 
     private var isDowntime: Bool { settings.quietEnabled && settings.isDuringQuietHours() }
@@ -235,7 +185,8 @@ struct OverviewView: View {
     var body: some View {
         Form {
             // -----------------------------------------------------------------
-            // Status
+            // Status — one card: what's protecting this device right now, the
+            // live counters spanning its full width, and the pause control.
             // -----------------------------------------------------------------
             Section {
                 DashboardCard(tint: statusColor) {
@@ -256,6 +207,19 @@ struct OverviewView: View {
                         }
                         Spacer(minLength: 0)
                     }
+
+                    Divider()
+                        .padding(.horizontal, -16)
+
+                    HStack(alignment: .top, spacing: 0) {
+                        StatTile(count: settings.scannedCount, title: "Scanned", icon: "eye")
+                        StatTile(count: settings.blockedCount, title: "Blocked", icon: "hand.raised")
+                        StatTile(count: settings.blocklistUser.count, title: "Sites", icon: "list.bullet")
+                        StatTile(count: blocker.isBlocking ? blocker.selectionCount : 0, title: "Apps", icon: "timer")
+                    }
+
+                    Divider()
+                        .padding(.horizontal, -16)
 
                     if settings.filtersEnabled {
                         Button {
@@ -279,7 +243,10 @@ struct OverviewView: View {
                         .buttonStyle(.borderedProminent)
                     }
                 }
-                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                // Full-bleed horizontally: the card spans the section frame,
+                // the same edge the cards/buttons below sit on, instead of
+                // being pinned 16pt inside them. Vertical stays tight.
+                .listRowInsets(EdgeInsets(top: 6, leading: 0, bottom: 6, trailing: 0))
                 .listRowBackground(Color.clear)
             } header: {
                 Text("Status")
@@ -290,74 +257,22 @@ struct OverviewView: View {
             }
 
             // -----------------------------------------------------------------
-            // Activity
+            // App blocking, then the web filter — the Filter page in order.
             // -----------------------------------------------------------------
-            Section("Activity") {
-                DashboardCard {
-                    HStack(spacing: 8) {
-                        StatTile(count: settings.scannedCount, title: "Scanned", icon: "eye")
-                        StatTile(count: settings.blockedCount, title: "Blocked", icon: "hand.raised")
-                        StatTile(count: settings.blocklistUser.count, title: "Sites", icon: "list.bullet")
-                        StatTile(count: blocker.isBlocking ? blocker.selectionCount : 0, title: "Apps", icon: "timer")
-                    }
-                }
-                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                .listRowBackground(Color.clear)
-            }
-
-            // -----------------------------------------------------------------
-            // Limits at a glance
-            // -----------------------------------------------------------------
-            Section {
-                LabeledContent("Quiet Hours") {
-                    if settings.quietEnabled {
-                        Text("\(settings.quietStart) – \(settings.quietEnd)")
-                            .foregroundStyle(.secondary)
-                            .monospacedDigit()
-                    } else {
-                        Text("Off")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                LabeledContent("App Blocking") {
-                    if blocker.isBlocking && blocker.hasSelection {
-                        Text(blocker.selectionSummary)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.trailing)
-                    } else {
-                        Text(blocker.hasSelection ? "Off" : "Nothing selected")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            } header: {
-                Text("Your Limits")
-            } footer: {
-                Text("Quiet hours block all Safari browsing during the window. App blocking uses iOS Screen Time to keep the selected apps closed until you turn it off (PIN required).")
-            }
-
-            // -----------------------------------------------------------------
-            // Account
-            // -----------------------------------------------------------------
-            Section("Account") {
-                LabeledContent("Signed in as") {
-                    Text(account.email ?? "—")
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-                if account.syncPending {
-                    Label("Your PIN is stored on this device only so far — it will sync when you're back online.", systemImage: "icloud.slash")
-                        .font(.footnote)
-                        .foregroundStyle(.orange)
-                }
-            }
+            AppBlockingSections()
+            WebFilterSections()
         }
-        .navigationTitle("Overview")
+        .navigationTitle("Filter")
         .onAppear {
             // The app group is shared with the Safari extension — re-read it
-            // so counters pushed by the extension show up.
-            settings.reload()
-            blocker.refreshAuthorization()
+            // so counters pushed by the extension show up. Deferred a tick so
+            // the publishes land after this view's own insertion transaction;
+            // running them synchronously here coalesces with the row diffs of
+            // the initial (or tab-switch) batch update.
+            DispatchQueue.main.async {
+                settings.reload()
+                blocker.refreshAuthorization()
+            }
         }
         .refreshable {
             settings.reload()
@@ -422,7 +337,7 @@ struct AppBlockingRootView: View {
                 .font(.system(size: 52))
                 .foregroundColor(.accentColor)
 
-            Text("Limits")
+            Text("Filter")
                 .font(.title2.bold())
 
             Text("App limits are available in the iPhone and iPad version of SafeSight.")

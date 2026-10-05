@@ -1,8 +1,5 @@
 package com.joshc.safesight.ui
 
-import android.net.VpnService
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,6 +22,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -33,7 +31,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.joshc.safesight.block.BlocklistRepository
@@ -233,47 +230,6 @@ fun SettingsScreen(viewModel: SafeSightViewModel) {
                 },
             )
         }
-
-        HorizontalDivider(Modifier.padding(vertical = 16.dp))
-        SectionTitle("Device-wide blocking")
-        val dnsBlocking by viewModel.dnsBlocking.collectAsState(initial = false)
-        val context = LocalContext.current
-        val vpnLauncher = rememberLauncherForActivityResult(
-            ActivityResultContracts.StartActivityForResult(),
-        ) {
-            if (VpnService.prepare(context) == null) {
-                viewModel.launch { setDnsBlocking(true) }
-                viewModel.startVpnService()
-            }
-        }
-        ToggleRow(
-            title = "DNS firewall (VPN)",
-            subtitle = "Sinkhole blocked domains for every app on this device",
-            checked = dnsBlocking,
-            onCheckedChange = { want ->
-                if (want) {
-                    val prep = VpnService.prepare(context)
-                    if (prep == null) {
-                        viewModel.launch { setDnsBlocking(true) }
-                        viewModel.startVpnService()
-                    } else {
-                        vpnLauncher.launch(prep)
-                    }
-                } else if (locked) {
-                    addHint = lockedMessage
-                } else {
-                    pendingGuard = PendingGuard("disable device-wide blocking") {
-                        it.setDnsBlocking(false)
-                        it.stopVpnService()
-                    }
-                }
-            },
-        )
-        Text(
-            "DNS-level only: apps that override system DNS (DoH / Private DNS) " +
-                "can bypass it — see android/PLAN.md.",
-            style = MaterialTheme.typography.bodySmall,
-        )
     }
 }
 

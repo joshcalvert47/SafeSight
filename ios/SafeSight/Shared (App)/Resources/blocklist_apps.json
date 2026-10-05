@@ -1,5 +1,5 @@
 {
-    "description": "Recommended apps for SafeSight. Screen Time (Family Controls) does the iOS blocking, but its tokens only come from the system FamilyActivityPicker, so this file cannot block by itself: setup and the Limits tab look it up to detect installed entries (via \"scheme\") and suggest names to search for in the picker. Entries with tier \"default\" are auto-blocked on Android, entries with tier \"optional\" are recommendation-only there. \"ios\" is the informational bundle id, \"android\" the Android package name (keep both copies of this file in sync).",
+    "description": "Recommended apps for SafeSight. Screen Time (Family Controls) does the iOS blocking, but its tokens only come from the system FamilyActivityPicker, so this file cannot block by itself: setup and the Filter tab look it up to detect installed entries (via \"scheme\") and suggest names to search for in the picker. Entries with tier \"default\" are auto-blocked on Android, entries with tier \"optional\" are recommendation-only there. \"ios\" is the informational bundle id, \"android\" the Android package name (keep both copies of this file in sync).",
     "enabled": true,
     "apps": [
         {

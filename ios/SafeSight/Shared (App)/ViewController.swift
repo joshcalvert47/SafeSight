@@ -91,8 +91,8 @@ class ViewController: PlatformViewController, WKNavigationDelegate, WKScriptMess
 #endif
     }
 
-    /// Presents the SwiftUI "Limits" root. On iOS this shows the Overview;
-    /// on macOS it explains that app limits live in the iOS version.
+    /// Presents the SwiftUI app-blocker root. On iOS this shows the Filter
+    /// page; on macOS it explains that app limits live in the iOS version.
     private func presentAppBlocker() {
         let root = AppBlockingRootView()
 

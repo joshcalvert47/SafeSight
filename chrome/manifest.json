@@ -31,7 +31,9 @@
             ],
             "exclude_matches": [
                 "https://mail.google.com/*",
-                "https://discord.com/*"
+                "https://discord.com/*",
+                "https://www.openstreetmap.org/",
+                "https://google.com/maps"
             ],
             "js": [
                 "content.js"

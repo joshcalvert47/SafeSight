@@ -39,7 +39,6 @@ class SettingsStore(private val context: Context) {
         val SCANNED_COUNT = intPreferencesKey("scannedCount")
         val BLOCKED_COUNT = intPreferencesKey("blockedCount")
         val ACCOUNT_READY = booleanPreferencesKey("accountReady")
-        val DNS_BLOCKING = booleanPreferencesKey("dnsBlocking")
         val CLIENT_ID = stringPreferencesKey("clientId")
         val DEVICE_ID = stringPreferencesKey("deviceId")
         val ACCOUNT_EMAIL = stringPreferencesKey("accountEmail")
@@ -60,7 +59,6 @@ class SettingsStore(private val context: Context) {
     val scannedCount: Flow<Int> = context.dataStore.data.map { it[Keys.SCANNED_COUNT] ?: 0 }
     val blockedCount: Flow<Int> = context.dataStore.data.map { it[Keys.BLOCKED_COUNT] ?: 0 }
     val accountReady: Flow<Boolean> = context.dataStore.data.map { it[Keys.ACCOUNT_READY] ?: false }
-    val dnsBlocking: Flow<Boolean> = context.dataStore.data.map { it[Keys.DNS_BLOCKING] ?: false }
     val accountEmail: Flow<String> = context.dataStore.data.map { it[Keys.ACCOUNT_EMAIL] ?: "" }
     val accountName: Flow<String> = context.dataStore.data.map { it[Keys.ACCOUNT_NAME] ?: "" }
     /** Defaults to "approved" so accounts registered before approval keep working. */
@@ -106,7 +104,6 @@ class SettingsStore(private val context: Context) {
     suspend fun setBlurAll(value: Boolean) = edit { it[Keys.BLUR_ALL] = value }
     suspend fun setSensitivity(value: Int) =
         edit { it[Keys.SENSITIVITY] = value.coerceIn(1, 9) }
-    suspend fun setDnsBlocking(value: Boolean) = edit { it[Keys.DNS_BLOCKING] = value }
 
     suspend fun setBlockedSites(value: List<String>) = setList(Keys.BLOCKED_SITES, value)
     suspend fun setAllowedSites(value: List<String>) = setList(Keys.ALLOWED_SITES, value)

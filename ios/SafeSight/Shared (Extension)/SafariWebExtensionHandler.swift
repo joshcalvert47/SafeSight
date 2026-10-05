@@ -128,6 +128,11 @@ class SafariWebExtensionHandler: NSObject, NSExtensionRequestHandling {
         if let raw = values["blocklistUser"] as? [String] {
             defaults.set(normalizedSites(raw), forKey: "blocklistUser")
         }
+        // User removals of shipped defaults, mirrored so the app-side store
+        // stays in step with what the extension lets through.
+        if let raw = values["blocklistRemoved"] as? [String] {
+            defaults.set(normalizedSites(raw), forKey: "blocklistRemoved")
+        }
     }
 
     /// JavaScript numbers arrive as NSNumber, so accept either representation.

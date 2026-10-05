@@ -10,13 +10,12 @@
 		2372AA1230628BDE00ED6C0B /* SafeSight Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2372AA1130628BDE00ED6C0B /* SafeSight Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		2372AA1C30628BDE00ED6C0B /* SafeSight Extension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2372AA1B30628BDE00ED6C0B /* SafeSight Extension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		2372AABB700130628BDC00ED6C0B /* SafeSight Shield.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2372AABB300230628BDC00ED6C0B /* SafeSight Shield.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		2372DA0B30628BDE00ED6C0B /* SafeSight Widget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2372DA0130628BDE00ED6C0B /* SafeSight Widget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		2372DB0B30628BDE00ED6C0B /* SafeSight DNS.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2372DB0130628BDE00ED6C0B /* SafeSight DNS.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		2372AFE93069ACF400ED6C0B /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 2372AFE83069ACF400ED6C0B /* FirebaseAuth */; };
 		2372AFEB3069ACF400ED6C0B /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 2372AFEA3069ACF400ED6C0B /* FirebaseCore */; };
 		2372AFED3069ACF400ED6C0B /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 2372AFEC3069ACF400ED6C0B /* FirebaseFirestore */; };
 		2372B0853069B37100ED6C0B /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 2372B0843069B37100ED6C0B /* GoogleSignIn */; };
 		2372B0873069B37100ED6C0B /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 2372B0863069B37100ED6C0B /* GoogleSignInSwift */; };
+		2372DA0B30628BDE00ED6C0B /* SafeSight Widget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 2372DA0130628BDE00ED6C0B /* SafeSight Widget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -48,13 +47,6 @@
 			remoteGlobalIDString = 2372DA0230628BDE00ED6C0B;
 			remoteInfo = "SafeSight Widget (iOS)";
 		};
-		2372DB0C30628BDE00ED6C0B /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 2372A9D830628BDC00ED6C0B /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 2372DB0230628BDE00ED6C0B;
-			remoteInfo = "SafeSight DNS (iOS)";
-		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -66,7 +58,6 @@
 				2372AA1230628BDE00ED6C0B /* SafeSight Extension.appex in Embed Foundation Extensions */,
 				2372AABB700130628BDC00ED6C0B /* SafeSight Shield.appex in Embed Foundation Extensions */,
 				2372DA0B30628BDE00ED6C0B /* SafeSight Widget.appex in Embed Foundation Extensions */,
-				2372DB0B30628BDE00ED6C0B /* SafeSight DNS.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 		};
@@ -88,7 +79,6 @@
 		2372AA1B30628BDE00ED6C0B /* SafeSight Extension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "SafeSight Extension.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		2372AABB300230628BDC00ED6C0B /* SafeSight Shield.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "SafeSight Shield.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 		2372DA0130628BDE00ED6C0B /* SafeSight Widget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "SafeSight Widget.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
-		2372DB0130628BDE00ED6C0B /* SafeSight DNS.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = "SafeSight DNS.appex"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -99,7 +89,6 @@
 				AppBlocker/AppBlockingView.swift,
 				AppBlocker/AppBlocklist.swift,
 				AppBlocker/AppSettingsStore.swift,
-				AppBlocker/DNSProfileManager.swift,
 				AppBlocker/ExtensionSettingsView.swift,
 				AppBlocker/FirebaseIdentity.swift,
 				AppBlocker/LimitsView.swift,
@@ -231,13 +220,6 @@
 			);
 			target = 2372DA0230628BDE00ED6C0B /* SafeSight Widget (iOS) */;
 		};
-		2372DB0A30628BDE00ED6C0B /* Exceptions for "iOS (DNS)" folder in "SafeSight DNS (iOS)" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 2372DB0230628BDE00ED6C0B /* SafeSight DNS (iOS) */;
-		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -316,14 +298,6 @@
 			path = "iOS (Widget)";
 			sourceTree = "<group>";
 		};
-		2372DB0930628BDE00ED6C0B /* iOS (DNS) */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				2372DB0A30628BDE00ED6C0B /* Exceptions for "iOS (DNS)" folder in "SafeSight DNS (iOS)" target */,
-			);
-			path = "iOS (DNS)";
-			sourceTree = "<group>";
-		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -362,11 +336,6 @@
 			files = (
 			);
 		};
-		2372DB0730628BDE00ED6C0B /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			files = (
-			);
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -381,7 +350,6 @@
 				2372AA1530628BDE00ED6C0B /* iOS (Extension) */,
 				2372AABB100230628BDC00ED6C0B /* iOS (Shield) */,
 				2372DA0930628BDE00ED6C0B /* iOS (Widget) */,
-				2372DB0930628BDE00ED6C0B /* iOS (DNS) */,
 				2372AA1F30628BDE00ED6C0B /* macOS (Extension) */,
 				2372A9F530628BDE00ED6C0B /* Products */,
 			);
@@ -396,7 +364,6 @@
 				2372AA1B30628BDE00ED6C0B /* SafeSight Extension.appex */,
 				2372AABB300230628BDC00ED6C0B /* SafeSight Shield.appex */,
 				2372DA0130628BDE00ED6C0B /* SafeSight Widget.appex */,
-				2372DB0130628BDE00ED6C0B /* SafeSight DNS.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -419,7 +386,6 @@
 				2372AA1430628BDE00ED6C0B /* PBXTargetDependency */,
 				2372AABB600230628BDC00ED6C0B /* PBXTargetDependency */,
 				2372DA0D30628BDE00ED6C0B /* PBXTargetDependency */,
-				2372DB0D30628BDE00ED6C0B /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				2372A9F630628BDE00ED6C0B /* iOS (App) */,
@@ -530,24 +496,6 @@
 			productReference = 2372DA0130628BDE00ED6C0B /* SafeSight Widget.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
-		2372DB0230628BDE00ED6C0B /* SafeSight DNS (iOS) */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 2372DB0330628BDE00ED6C0B /* Build configuration list for PBXNativeTarget "SafeSight DNS (iOS)" */;
-			buildPhases = (
-				2372DB0630628BDE00ED6C0B /* Sources */,
-				2372DB0730628BDE00ED6C0B /* Frameworks */,
-				2372DB0830628BDE00ED6C0B /* Resources */,
-			);
-			buildRules = (
-			);
-			fileSystemSynchronizedGroups = (
-				2372DB0930628BDE00ED6C0B /* iOS (DNS) */,
-			);
-			name = "SafeSight DNS (iOS)";
-			productName = "SafeSight DNS (iOS)";
-			productReference = 2372DB0130628BDE00ED6C0B /* SafeSight DNS.appex */;
-			productType = "com.apple.product-type.app-extension";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -576,9 +524,6 @@
 					2372DA0230628BDE00ED6C0B = {
 						CreatedOnToolsVersion = 27.0;
 					};
-					2372DB0230628BDE00ED6C0B = {
-						CreatedOnToolsVersion = 27.0;
-					};
 				};
 			};
 			buildConfigurationList = 2372A9DB30628BDC00ED6C0B /* Build configuration list for PBXProject "SafeSight" */;
@@ -605,7 +550,6 @@
 				2372AA1A30628BDE00ED6C0B /* SafeSight Extension (macOS) */,
 				2372AABB300130628BDC00ED6C0B /* SafeSight Shield (iOS) */,
 				2372DA0230628BDE00ED6C0B /* SafeSight Widget (iOS) */,
-				2372DB0230628BDE00ED6C0B /* SafeSight DNS (iOS) */,
 			);
 		};
 /* End PBXProject section */
@@ -637,11 +581,6 @@
 			);
 		};
 		2372DA0830628BDE00ED6C0B /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			files = (
-			);
-		};
-		2372DB0830628BDE00ED6C0B /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			files = (
 			);
@@ -679,11 +618,6 @@
 			files = (
 			);
 		};
-		2372DB0630628BDE00ED6C0B /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			files = (
-			);
-		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -706,11 +640,6 @@
 			isa = PBXTargetDependency;
 			target = 2372DA0230628BDE00ED6C0B /* SafeSight Widget (iOS) */;
 			targetProxy = 2372DA0C30628BDE00ED6C0B /* PBXContainerItemProxy */;
-		};
-		2372DB0D30628BDE00ED6C0B /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 2372DB0230628BDE00ED6C0B /* SafeSight DNS (iOS) */;
-			targetProxy = 2372DB0C30628BDE00ED6C0B /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1283,69 +1212,6 @@
 			};
 			name = Release;
 		};
-		2372DB0430628BDE00ED6C0B /* Debug configuration for PBXNativeTarget "SafeSight DNS (iOS)" */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = "iOS (DNS)/SafeSight DNS.entitlements";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 7SXPXFF2R8;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "iOS (DNS)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "SafeSight DNS";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.1;
-				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight.DNS;
-				PRODUCT_NAME = "SafeSight DNS";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-		2372DB0530628BDE00ED6C0B /* Release configuration for PBXNativeTarget "SafeSight DNS (iOS)" */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_ENTITLEMENTS = "iOS (DNS)/SafeSight DNS.entitlements";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 7SXPXFF2R8;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = "iOS (DNS)/Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "SafeSight DNS";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.1;
-				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight.DNS;
-				PRODUCT_NAME = "SafeSight DNS";
-				SDKROOT = iphoneos;
-				SKIP_INSTALL = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1402,14 +1268,6 @@
 			buildConfigurations = (
 				2372DA0430628BDE00ED6C0B /* Debug configuration for PBXNativeTarget "SafeSight Widget (iOS)" */,
 				2372DA0530628BDE00ED6C0B /* Release configuration for PBXNativeTarget "SafeSight Widget (iOS)" */,
-			);
-			defaultConfigurationName = Release;
-		};
-		2372DB0330628BDE00ED6C0B /* Build configuration list for PBXNativeTarget "SafeSight DNS (iOS)" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				2372DB0430628BDE00ED6C0B /* Debug configuration for PBXNativeTarget "SafeSight DNS (iOS)" */,
-				2372DB0530628BDE00ED6C0B /* Release configuration for PBXNativeTarget "SafeSight DNS (iOS)" */,
 			);
 			defaultConfigurationName = Release;
 		};

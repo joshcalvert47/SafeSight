@@ -62,7 +62,6 @@ class SafeSightViewModel(app: Application) : AndroidViewModel(app) {
     val skinFilter = store.skinFilter
     val blurAll = store.blurAll
     val sensitivity = store.sensitivity
-    val dnsBlocking = store.dnsBlocking
     val blockedApps = store.blockedApps
     val blockedAppsRemoved = store.blockedAppsRemoved
     val scannedCount = store.scannedCount
@@ -794,20 +793,7 @@ class SafeSightViewModel(app: Application) : AndroidViewModel(app) {
     suspend fun setSkinFilter(value: Boolean) = store.setSkinFilter(value)
     suspend fun setBlurAll(value: Boolean) = store.setBlurAll(value)
     suspend fun setSensitivity(value: Int) = store.setSensitivity(value)
-    suspend fun setDnsBlocking(value: Boolean) = store.setDnsBlocking(value)
     suspend fun resetStats() = store.resetStats()
-
-    fun startVpnService() {
-        getApplication<Application>().startService(
-            android.content.Intent(getApplication(), com.joshc.safesight.block.SafeSightVpnService::class.java),
-        )
-    }
-
-    fun stopVpnService() {
-        getApplication<Application>().stopService(
-            android.content.Intent(getApplication(), com.joshc.safesight.block.SafeSightVpnService::class.java),
-        )
-    }
 
     sealed class AddSiteResult {
         data object Added : AddSiteResult()

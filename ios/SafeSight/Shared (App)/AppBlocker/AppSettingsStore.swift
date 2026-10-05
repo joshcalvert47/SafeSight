@@ -90,22 +90,39 @@ final class SharedSettings: ObservableObject {
         defaults.set(enabled, forKey: "skinFilter")
     }
 
+    /// Re-reads every value from the app group. Assignments are guarded so a
+    /// reload that finds no changes publishes *nothing*: open Forms diff their
+    /// rows on every @Published write, and redundant re-publishes racing a
+    /// real mutation (sheet dismissal, tab switch, App Intent) are what trip
+    /// "Invalid update: invalid number of items in section".
     func reload() {
-        skinFilter = defaults.bool(forKey: "skinFilter")
-        blurAll = defaults.bool(forKey: "blurAll")
-        sensitivity = defaults.object(forKey: "sensitivity") as? Int ?? 4
-        blocklistUser = defaults.stringArray(forKey: "blocklistUser") ?? []
-        scannedCount = max(0, defaults.integer(forKey: "scannedCount"))
-        blockedCount = max(0, defaults.integer(forKey: "blockedCount"))
-        filtersEnabled = defaults.object(forKey: "filtersEnabled") as? Bool ?? true
-        quietEnabled = defaults.bool(forKey: "quietEnabled")
-        quietStart = defaults.string(forKey: "quietStart") ?? ""
-        quietEnd = defaults.string(forKey: "quietEnd") ?? ""
+        let newSkinFilter = defaults.bool(forKey: "skinFilter")
+        if skinFilter != newSkinFilter { skinFilter = newSkinFilter }
+        let newBlurAll = defaults.bool(forKey: "blurAll")
+        if blurAll != newBlurAll { blurAll = newBlurAll }
+        let newSensitivity = defaults.object(forKey: "sensitivity") as? Int ?? 4
+        if sensitivity != newSensitivity { sensitivity = newSensitivity }
+        let newBlocklist = defaults.stringArray(forKey: "blocklistUser") ?? []
+        if blocklistUser != newBlocklist { blocklistUser = newBlocklist }
+        let newScanned = max(0, defaults.integer(forKey: "scannedCount"))
+        if scannedCount != newScanned { scannedCount = newScanned }
+        let newBlocked = max(0, defaults.integer(forKey: "blockedCount"))
+        if blockedCount != newBlocked { blockedCount = newBlocked }
+        let newEnabled = defaults.object(forKey: "filtersEnabled") as? Bool ?? true
+        if filtersEnabled != newEnabled { filtersEnabled = newEnabled }
+        let newQuiet = defaults.bool(forKey: "quietEnabled")
+        if quietEnabled != newQuiet { quietEnabled = newQuiet }
+        let newStart = defaults.string(forKey: "quietStart") ?? ""
+        if quietStart != newStart { quietStart = newStart }
+        let newEnd = defaults.string(forKey: "quietEnd") ?? ""
+        if quietEnd != newEnd { quietEnd = newEnd }
     }
 
     func refreshCounts() {
-        scannedCount = max(0, defaults.integer(forKey: "scannedCount"))
-        blockedCount = max(0, defaults.integer(forKey: "blockedCount"))
+        let scanned = max(0, defaults.integer(forKey: "scannedCount"))
+        if scannedCount != scanned { scannedCount = scanned }
+        let blocked = max(0, defaults.integer(forKey: "blockedCount"))
+        if blockedCount != blocked { blockedCount = blocked }
     }
 
     func resetStats() {

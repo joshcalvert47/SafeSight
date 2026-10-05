@@ -6,7 +6,7 @@
 //  Screen Time (Family Controls) does the actual blocking, but its tokens can
 //  only come from the system FamilyActivityPicker, so this file can never
 //  block anything by itself: it detects which listed apps are installed to
-//  suggest names during onboarding and in the Limits tab. On Android the same
+//  suggest names during onboarding and in the Filter tab. On Android the same
 //  file auto-blocks the tier "default" entries; keep both copies in sync.
 //
 

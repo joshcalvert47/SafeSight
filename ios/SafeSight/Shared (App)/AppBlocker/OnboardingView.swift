@@ -9,7 +9,7 @@
 //  2. SetupFlowView  — grant Screen Time, pick apps to block, turn on the
 //     Safari extension.
 //
-//  After that the four tabs take over; SetupProgress remembers that setup is
+//  After that the three tabs take over; SetupProgress remembers that setup is
 //  done (app group, survives relaunches).
 //
 
@@ -363,7 +363,7 @@ private struct AppBlockingSetupStep: View {
         switch blocker.authorizationState {
         case .approved:
             return blocker.hasSelection
-                ? "These apps will be blocked everywhere on this device once you turn blocking on (you can do that in the Limits tab)."
+                ? "These apps will be blocked everywhere on this device once you turn blocking on (you can do that in the Filter tab)."
                 : "Pick the apps you want blocked — the system picker is iOS's only way to choose them."
         case .denied:
             return "SafeSight needs Screen Time access to close other apps. You can grant it later in Settings."

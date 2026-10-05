@@ -3,17 +3,23 @@
 //  Shared (App)
 //  iOS target only.
 //
-//  "Limits" tab — quiet hours (web, enforced by the Safari extension) and
-//  app blocking (Screen Time / Family Controls, enforced by ManagedSettings).
+//  App blocking (Screen Time / Family Controls, enforced by
+//  ManagedSettings) — rendered inside the Filter tab — and the "Times"
+//  tab: quiet hours (web, enforced by the Safari extension).
 //
 
 import SwiftUI
 import FamilyControls
 import ManagedSettings
 
-struct LimitsView: View {
-    @StateObject private var settings = SharedSettings.shared
+// MARK: - App blocking (Filter tab)
+
+/// The app-blocking controls, rendered inside the Filter tab's form.
+/// Owns the family-activity picker draft and its own PIN gate; both
+/// presentation modifiers hang off the section itself.
+struct AppBlockingSections: View {
     @ObservedObject private var blocker = ScreenTimeBlocker.shared
+
     @State private var pinGate: PinGate?
 
     // Picker draft — committed on Done; a draft that *removes* something from
@@ -22,129 +28,79 @@ struct LimitsView: View {
     @State private var pickerPresented = false
     @State private var didCommitDraft = false
 
-    private let defaultStart = (hour: 22, minute: 0)
-    private let defaultEnd = (hour: 6, minute: 0)
-
     var body: some View {
-        Form {
-            // -----------------------------------------------------------------
-            // App blocking — Screen Time.
-            // -----------------------------------------------------------------
-            Section {
-                if blocker.authorizationState != .approved {
-                    Button {
-                        Task { await blocker.requestAuthorization() }
-                    } label: {
-                        HStack {
-                            if blocker.isRequestingAuthorization {
-                                ProgressView()
-                            }
-                            Text(blocker.authorizationState == .denied
-                                 ? "Try Granting Again"
-                                 : "Allow Screen Time Access")
-                                .frame(maxWidth: .infinity)
-                                .multilineTextAlignment(.center)
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
-                    .disabled(blocker.isRequestingAuthorization)
+        appSection
+            .sheet(isPresented: $pickerPresented) { pickerSheet }
+            .pinGated($pinGate)
+    }
 
-                    if blocker.authorizationState == .denied {
-                        Label("Denied — enable SafeSight in Settings → Screen Time → Apps with Screen Time Access",
-                              systemImage: "exclamationmark.triangle.fill")
-                            .font(.footnote)
-                            .foregroundStyle(.orange)
-                    }
-                }
-
-                Toggle("Block Selected Apps", isOn: Binding(
-                    get: { blocker.isBlocking },
-                    set: { enabled in
-                        if enabled {
-                            blocker.enableBlocking()
-                        } else {
-                            pinGate = PinGate(
-                                title: "Stop blocking apps",
-                                reason: "Your selected apps will be openable again until you turn blocking back on.",
-                                perform: { blocker.disableBlocking() }
-                            )
-                        }
-                    }
-                ))
-                .disabled(blocker.authorizationState != .approved
-                          || (!blocker.isBlocking && !blocker.hasSelection))
-
-                LabeledContent("Blocked") {
-                    Text(blocker.isBlocking ? blocker.selectionSummary : "Off")
-                        .foregroundStyle(.secondary)
-                }
-
+    private var appSection: some View {
+        Section {
+            if blocker.authorizationState != .approved {
                 Button {
-                    draft = blocker.selection
-                    didCommitDraft = false
-                    pickerPresented = true
+                    Task { await blocker.requestAuthorization() }
                 } label: {
-                    Text("Choose Apps…")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.large)
-                .disabled(blocker.authorizationState != .approved)
-            } header: {
-                Text("App Blocking")
-            } footer: {
-                Text("Screen Time lets iOS block the selected apps everywhere on this device. SafeSight only asks for access once — turning blocking off needs your PIN.")
-            }
-
-            // -----------------------------------------------------------------
-            // Quiet hours — enforced in Safari by the extension.
-            // -----------------------------------------------------------------
-            Section {
-                Toggle("Quiet Hours", isOn: Binding(
-                    get: { settings.quietEnabled },
-                    set: { enabled in
-                        if enabled {
-                            if SharedSettings.minutes(settings.quietStart) == nil {
-                                settings.quietStart = Self.format(defaultStart)
-                            }
-                            if SharedSettings.minutes(settings.quietEnd) == nil {
-                                settings.quietEnd = Self.format(defaultEnd)
-                            }
-                            settings.quietEnabled = true
-                        } else {
-                            pinGate = PinGate(
-                                title: "Turn off quiet hours",
-                                reason: "Safari will stop blocking browsing outside the window until you turn this back on.",
-                                perform: { settings.quietEnabled = false }
-                            )
+                    HStack {
+                        if blocker.isRequestingAuthorization {
+                            ProgressView()
                         }
+                        Text(blocker.authorizationState == .denied
+                             ? "Try Granting Again"
+                             : "Allow Screen Time Access")
+                            .frame(maxWidth: .infinity)
+                            .multilineTextAlignment(.center)
                     }
-                ))
-
-                DatePicker("From", selection: timeBinding(\.quietStart, fallback: defaultStart), displayedComponents: .hourAndMinute)
-                    .disabled(!settings.quietEnabled)
-                DatePicker("Until", selection: timeBinding(\.quietEnd, fallback: defaultEnd), displayedComponents: .hourAndMinute)
-                    .disabled(!settings.quietEnabled)
-
-                if settings.quietEnabled && settings.isDuringQuietHours() {
-                    Label(downtimeLabel, systemImage: "moon.zzz.fill")
-                        .font(.footnote)
-                        .foregroundStyle(.indigo)
                 }
-            } header: {
-                Text("Quiet Hours")
-            } footer: {
-                Text(quietFooter)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+                .disabled(blocker.isRequestingAuthorization)
+
+                if blocker.authorizationState == .denied {
+                    Label("Denied — enable SafeSight in Settings → Screen Time → Apps with Screen Time Access",
+                          systemImage: "exclamationmark.triangle.fill")
+                        .font(.footnote)
+                        .foregroundStyle(.orange)
+                }
             }
+
+            Toggle("Block Selected Apps", isOn: Binding(
+                get: { blocker.isBlocking },
+                set: { enabled in
+                    if enabled {
+                        blocker.enableBlocking()
+                    } else {
+                        pinGate = PinGate(
+                            title: "Stop blocking apps",
+                            reason: "Your selected apps will be openable again until you turn blocking back on.",
+                            perform: { blocker.disableBlocking() }
+                        )
+                    }
+                }
+            ))
+            .disabled(blocker.authorizationState != .approved
+                      || (!blocker.isBlocking && !blocker.hasSelection))
+
+            LabeledContent("Blocked") {
+                Text(blocker.isBlocking ? blocker.selectionSummary : "Off")
+                    .foregroundStyle(.secondary)
+            }
+
+            Button {
+                draft = blocker.selection
+                didCommitDraft = false
+                pickerPresented = true
+            } label: {
+                Text("Choose Apps…")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .disabled(blocker.authorizationState != .approved)
+        } header: {
+            Text("App Blocking")
+        } footer: {
+            Text("Screen Time lets iOS block the selected apps everywhere on this device. SafeSight only asks for access once — turning blocking off needs your PIN.")
         }
-        .navigationTitle("Limits")
-        .onAppear {
-            settings.reload()
-            blocker.refreshAuthorization()
-        }
-        .pinGated($pinGate)
-        .sheet(isPresented: $pickerPresented) { pickerSheet }
     }
 
     // MARK: - App picker
@@ -191,6 +147,73 @@ struct LimitsView: View {
             reason: "The apps you unchecked will be openable again.",
             perform: { blocker.selection = draft }
         )
+    }
+}
+
+// MARK: - Times tab
+
+/// The "Times" tab — the quiet-hours window, enforced in Safari by the
+/// extension. App blocking lives in the Filter tab.
+struct TimesView: View {
+    @StateObject private var settings = SharedSettings.shared
+    @State private var pinGate: PinGate?
+
+    private let defaultStart = (hour: 22, minute: 0)
+    private let defaultEnd = (hour: 6, minute: 0)
+
+    var body: some View {
+        Form {
+            // -----------------------------------------------------------------
+            // Quiet hours — enforced in Safari by the extension.
+            // -----------------------------------------------------------------
+            Section {
+                Toggle("Quiet Hours", isOn: Binding(
+                    get: { settings.quietEnabled },
+                    set: { enabled in
+                        if enabled {
+                            if SharedSettings.minutes(settings.quietStart) == nil {
+                                settings.quietStart = Self.format(defaultStart)
+                            }
+                            if SharedSettings.minutes(settings.quietEnd) == nil {
+                                settings.quietEnd = Self.format(defaultEnd)
+                            }
+                            settings.quietEnabled = true
+                        } else {
+                            pinGate = PinGate(
+                                title: "Turn off quiet hours",
+                                reason: "Safari will stop blocking browsing outside the window until you turn this back on.",
+                                perform: { settings.quietEnabled = false }
+                            )
+                        }
+                    }
+                ))
+
+                DatePicker("From", selection: timeBinding(\.quietStart, fallback: defaultStart), displayedComponents: .hourAndMinute)
+                    .disabled(!settings.quietEnabled)
+                DatePicker("Until", selection: timeBinding(\.quietEnd, fallback: defaultEnd), displayedComponents: .hourAndMinute)
+                    .disabled(!settings.quietEnabled)
+
+                if settings.quietEnabled && settings.isDuringQuietHours() {
+                    Label(downtimeLabel, systemImage: "moon.zzz.fill")
+                        .font(.footnote)
+                        .foregroundStyle(.indigo)
+                }
+            } header: {
+                Text("Quiet Hours")
+            } footer: {
+                Text(quietFooter)
+            }
+        }
+
+        .navigationTitle("Times")
+        .onAppear {
+            // Deferred a tick: a synchronous reload here publishes while the
+            // view's insertion transaction is still being applied.
+            DispatchQueue.main.async {
+                settings.reload()
+            }
+        }
+        .pinGated($pinGate)
     }
 
     // MARK: - Copy

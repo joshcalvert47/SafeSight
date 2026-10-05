@@ -98,7 +98,13 @@ final class ScreenTimeBlocker: ObservableObject {
 
     func refreshAuthorization() {
         let previous = authorizationState
-        authorizationState = ScreenTimeBlocker.map(AuthorizationCenter.shared.authorizationStatus)
+        // Publish only real transitions: this runs from onAppear and from App
+        // Intents, and a redundant @Published write racing a row update in an
+        // open Form corrupts its collection-view diff.
+        let latest = ScreenTimeBlocker.map(AuthorizationCenter.shared.authorizationStatus)
+        if latest != previous {
+            authorizationState = latest
+        }
         // Screen Time access was just granted (e.g. flipped on in Settings
         // while the app was backgrounded): re-arm anything already selected —
         // shield values set while unauthorized may never have taken effect.

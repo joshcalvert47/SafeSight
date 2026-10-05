@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
 /**
- * Device-wide + in-app site blocklist, ported from the extensions:
+ * In-app site blocklist, ported from the extensions:
  *  - defaults ship in assets/blocklist.json (locked, never removable)
  *  - user additions live in blocklistUser, user removals of defaults in
  *    blocklistRemoved (chrome.storage keys, unchanged)
