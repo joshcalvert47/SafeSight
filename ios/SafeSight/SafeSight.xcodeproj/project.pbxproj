@@ -752,7 +752,7 @@
 					"-framework",
 					WebKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight;
+				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight.macos;
 				PRODUCT_NAME = SafeSight;
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -798,7 +798,7 @@
 					"-framework",
 					WebKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight;
+				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight.macos;
 				PRODUCT_NAME = SafeSight;
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
