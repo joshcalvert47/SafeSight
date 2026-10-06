@@ -752,7 +752,7 @@
 					"-framework",
 					WebKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight.macos;
+				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight;
 				PRODUCT_NAME = SafeSight;
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -798,7 +798,7 @@
 					"-framework",
 					WebKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight.macos;
+				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight;
 				PRODUCT_NAME = SafeSight;
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -840,7 +840,7 @@
 					"-framework",
 					SafariServices,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight.Extension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight.macos.Extension;
 				PRODUCT_NAME = "SafeSight Extension";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -876,7 +876,7 @@
 					"-framework",
 					SafariServices,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight.Extension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight.macos.Extension;
 				PRODUCT_NAME = "SafeSight Extension";
 				SDKROOT = macosx;
 				SKIP_INSTALL = YES;
@@ -917,7 +917,7 @@
 					"-framework",
 					WebKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight;
+				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight.macos;
 				PRODUCT_NAME = SafeSight;
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
@@ -959,7 +959,7 @@
 					"-framework",
 					WebKit,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight;
+				PRODUCT_BUNDLE_IDENTIFIER = com.joshc.SafeSight.macos;
 				PRODUCT_NAME = SafeSight;
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = macosx;
