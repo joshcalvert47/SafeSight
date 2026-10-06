@@ -650,7 +650,7 @@
 				CODE_SIGN_ENTITLEMENTS = "iOS (Extension)/SafeSight Extension.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				DEVELOPMENT_TEAM = FN6JAJTUFC;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "SafeSight Extension";
@@ -689,7 +689,7 @@
 				CODE_SIGN_ENTITLEMENTS = "iOS (Extension)/SafeSight Extension.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				DEVELOPMENT_TEAM = FN6JAJTUFC;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (Extension)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "SafeSight Extension";
@@ -731,7 +731,7 @@
 				CODE_SIGN_ENTITLEMENTS = "iOS (App)/SafeSight.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				DEVELOPMENT_TEAM = FN6JAJTUFC;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (App)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = SafeSight;
@@ -777,7 +777,7 @@
 				CODE_SIGN_ENTITLEMENTS = "iOS (App)/SafeSight.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				DEVELOPMENT_TEAM = FN6JAJTUFC;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (App)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = SafeSight;
@@ -821,7 +821,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				DEVELOPMENT_TEAM = FN6JAJTUFC;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
@@ -857,7 +857,7 @@
 			buildSettings = {
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				DEVELOPMENT_TEAM = FN6JAJTUFC;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
@@ -895,13 +895,14 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				DEVELOPMENT_TEAM = FN6JAJTUFC;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = SafeSight;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSMainStoryboardFile = Main;
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -936,13 +937,14 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				DEVELOPMENT_TEAM = FN6JAJTUFC;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = SafeSight;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSMainStoryboardFile = Main;
 				INFOPLIST_KEY_NSPrincipalClass = NSApplication;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1092,7 +1094,7 @@
 				CODE_SIGN_ENTITLEMENTS = "iOS (Shield)/SafeSight Shield.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				DEVELOPMENT_TEAM = FN6JAJTUFC;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (Shield)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "SafeSight Shield";
@@ -1123,7 +1125,7 @@
 				CODE_SIGN_ENTITLEMENTS = "iOS (Shield)/SafeSight Shield.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				DEVELOPMENT_TEAM = FN6JAJTUFC;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (Shield)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "SafeSight Shield";
@@ -1155,7 +1157,7 @@
 				CODE_SIGN_ENTITLEMENTS = "iOS (Widget)/SafeSight Widget.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				DEVELOPMENT_TEAM = FN6JAJTUFC;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (Widget)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "SafeSight Widget";
@@ -1186,7 +1188,7 @@
 				CODE_SIGN_ENTITLEMENTS = "iOS (Widget)/SafeSight Widget.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = 7SXPXFF2R8;
+				DEVELOPMENT_TEAM = FN6JAJTUFC;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "iOS (Widget)/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "SafeSight Widget";
