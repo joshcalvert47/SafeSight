@@ -1,0 +1,9 @@
+{
+  "id" : "c0960816-d90f-4558-aa62-589e9a175de7",
+  "targets" : [
+    {
+      "id" : "d362f5a0-d566-470b-ad38-0ba760c65716",
+      "name" : "SafeSight (iOS)"
+    }
+  ]
+}
