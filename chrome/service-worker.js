@@ -28,9 +28,23 @@ async function setupOffscreen() {
 
 // Ensure offscreen doc is ready on start
 chrome.runtime.onStartup.addListener(setupOffscreen);
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(async (details) => {
     setupOffscreen();
     setupContextMenus();
+
+    if (details.reason === 'update') {
+        const currentVersion = chrome.runtime.getManifest().version;
+        const res = await chrome.storage.local.get(['installedVersion']);
+        const prevVersion = res.installedVersion;
+
+        if (prevVersion && prevVersion !== currentVersion) {
+            chrome.tabs.create({ url: chrome.runtime.getURL('update.html') });
+        }
+        await chrome.storage.local.set({ installedVersion: currentVersion });
+    } else if (details.reason === 'install') {
+        const currentVersion = chrome.runtime.getManifest().version;
+        await chrome.storage.local.set({ installedVersion: currentVersion });
+    }
 });
 
 // ---------------------------------------------------------------------------
