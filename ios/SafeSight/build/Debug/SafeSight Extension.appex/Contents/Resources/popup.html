@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="header">
+        <div class="logo-icon"><img src="icon.png" alt="SafeSight"></div>
+        <h2>SafeSight</h2>
+        <div class="account-area">
+            <button id="accountBtn" class="account-btn" type="button" title="Sign in / account">Sign in</button>
+        </div>
+    </div>
+
+    <div id="pendingBanner" style="display:none;">
+        <div class="banner-content">
+            <span class="banner-icon">⏳</span>
+            <span>Waiting for admin approval — this device stays locked until the account is approved.</span>
+        </div>
+    </div>
+
+    <div class="stats-container">
+        <div class="stat-box">
+            <span class="stat-value" id="statScanned">0</span>
+            <span class="stat-label">Scanned</span>
+        </div>
+        <div class="stat-box">
+            <span class="stat-value" id="statBlocked">0</span>
+            <span class="stat-label">Blocked</span>
+        </div>
+    </div>
+
+    <div class="status-card options-only">
+        <div class="control-group">
+            <div class="control-item">
+                <div class="label-info">
+                    <span class="label-title">Skin Filter</span>
+                    <span class="label-desc">Cover detected skin pixels</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="skinFilter">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="control-item control-item--stacked">
+                <div class="label-info">
+                    <span class="label-title">Filter Sensitivity</span>
+                    <span id="sensitivityVal" class="label-desc">Standard (4)</span>
+                </div>
+                <div class="range-container">
+                    <input type="range" id="sensitivity" min="1" max="9" step="1" value="4" class="sensitivity-range">
+                    <div class="range-labels">
+                        <span>Relaxed</span>
+                        <span>Strict</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-item">
+                <div class="label-info">
+                    <span class="label-title">Blur All</span>
+                    <span class="label-desc">Maximum protection</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="blurAll">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="blocklist-section">
+            <div class="label-info">
+                <span class="label-title">Blocked Sites</span>
+                <span class="label-desc">Sites that can't be opened at all</span>
+            </div>
+            <div class="blocklist-row">
+                <input type="text" id="blockSiteInput" placeholder="example.com" spellcheck="false" autocomplete="off">
+                <button id="blockSiteAdd" class="blocklist-add">Add</button>
+            </div>
+            <ul id="blockSiteList" class="blocklist"></ul>
+            <div class="blocklist-note" id="blocklistNote">Defaults loaded from blocklist.json</div>
+        </div>
+
+        <div class="admin-section">
+            <button id="resetStats" class="admin-btn admin-btn-secondary">Reset Statistics</button>
+        </div>
+    </div>
+
+    <div class="status-card status-only">
+        <div class="status-head">
+            <span class="status-dot" id="statusDot"></span>
+            <span class="status-title" id="statusTitle">Checking…</span>
+        </div>
+
+        <ul class="status-list">
+            <li><span>Content filter</span><span class="status-value" id="stFilter">—</span></li>
+            <li><span>Skin filter</span><span class="status-value" id="stSkin">—</span></li>
+            <li><span>Sensitivity</span><span class="status-value" id="stSensitivity">—</span></li>
+            <li><span>Blocked sites</span><span class="status-value" id="stSites">—</span></li>
+            <li><span>Scanned / blocked</span><span class="status-value" id="stStats">—</span></li>
+        </ul>
+
+        <p class="status-note">
+            <span class="only-ios">Manage skin filter, sensitivity, blur-all and blocked sites in the SafeSight app's Web Filter tab.</span>
+            <span class="only-mac">Changes in the panel above apply here right away and sync to the SafeSight app automatically.</span>
+        </p>
+    </div>
+
+    <div class="footer">
+        Powered by LiteRT • Persistent Engine v1.3
+    </div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

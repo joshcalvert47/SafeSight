@@ -1,0 +1,10 @@
+{
+    "extension_name": {
+        "message": "SafeSight",
+        "description": "The display name for the extension."
+    },
+    "extension_description": {
+        "message": "Fast and secure AI-powered image filtering using persistent LiteRT engine.",
+        "description": "Description of what the extension does."
+    }
+}

@@ -360,13 +360,4 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
     }
 
-    if (message.type === 'RESET_STATS') {
-        stats.scanned = 0;
-        stats.blocked = 0;
-        stats.dirty = false;
-        if (stats.flushTimer) clearTimeout(stats.flushTimer);
-        stats.flushTimer = null;
-        chrome.storage.local.set({ scannedCount: 0, blockedCount: 0 });
-        return;
-    }
 });

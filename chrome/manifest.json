@@ -1,13 +1,14 @@
 {
     "manifest_version": 3,
     "name": "SafeSight",
-    "version": "1.2",
-    "description": "Fast and secure AI-powered image filtering using persistent LiteRT engine.",
+    "version": "1.3",
+    "description": "Keep safe on the Web.",
     "permissions": [
         "storage",
         "offscreen",
         "contextMenus",
-        "tabs"
+        "tabs",
+        "identity"
     ],
     "host_permissions": [
         "<all_urls>"
@@ -48,6 +49,8 @@
     "web_accessible_resources": [
         {
             "resources": [
+                "login.html",
+                "login.js",
                 "offscreen.html",
                 "litert.js",
                 "litert_wasm_utils.js",
@@ -65,6 +68,10 @@
             ]
         }
     ],
+    "oauth2": {
+        "client_id": "816580635380-emh6p805rrk24f7ova3jgosnr6jbvce6.apps.googleusercontent.com",
+        "scopes": ["openid", "https://www.googleapis.com/auth/userinfo.email", "https://www.googleapis.com/auth/userinfo.profile"]
+    },
     "icons": {
         "16": "icon.png",
         "32": "icon.png",

@@ -198,6 +198,37 @@ const getAccount = (env, email) =>
 const putAccount = (env, a) => putDoc(env, "accounts", "email", a.email, a);
 const deleteAccount = (env, email) => delDoc(env, "accounts", "email", email);
 
+// --- password hashing (bcrypt-like with SHA-256 + salt) ---------------------
+async function hashPassword(plain) {
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw', salt, { name: 'HKDF', hash: 'SHA-256' }, false, ['deriveBits']);
+  const derived = await crypto.subtle.deriveBits(
+    { name: 'HKDF', hash: 'SHA-256', salt: enc.encode('safesight'), info: salt },
+    key, 256);
+  const hash = await crypto.subtle.digest('SHA-256',
+    enc.encode(plain + ':' + btoa(String.fromCharCode(...salt))));
+  return btoa(String.fromCharCode(...new Uint8Array(hash))) + '$' + btoa(String.fromCharCode(...salt));
+}
+
+async function verifyPassword(hash, plain) {
+  if (!hash || !plain) return false;
+  const [storedHash, saltB64] = hash.split('$');
+  if (!storedHash || !saltB64) return false;
+  const salt = Uint8Array.from(atob(saltB64), c => c.charCodeAt(0));
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    'raw', salt, { name: 'HKDF', hash: 'SHA-256' }, false, ['deriveBits']);
+  const derived = await crypto.subtle.deriveBits(
+    { name: 'HKDF', hash: 'SHA-256', salt: enc.encode('safesight'), info: salt },
+    key, 256);
+  const checkHash = await crypto.subtle.digest('SHA-256',
+    enc.encode(plain + ':' + btoa(String.fromCharCode(...salt))));
+  const checkB64 = btoa(String.fromCharCode(...new Uint8Array(checkHash)));
+  return checkB64 === storedHash;
+}
+
 // --- invites (one code creates one account, and is spent on use) ------------
 const getInvite = (env, code) =>
   code ? getDoc(env, "SELECT data FROM invites WHERE code = ?", code) : null;
@@ -223,6 +254,13 @@ function ensureDb(env) {
     dbReady = env.DB
       .prepare(
         "CREATE TABLE IF NOT EXISTS invites (code TEXT PRIMARY KEY, data TEXT NOT NULL)"
+      )
+      .run()
+      .catch(() => {});
+    // Password reset tokens
+    env.DB
+      .prepare(
+        "CREATE TABLE IF NOT EXISTS password_resets (token TEXT PRIMARY KEY, data TEXT NOT NULL)"
       )
       .run()
       .catch(() => {});
@@ -335,17 +373,25 @@ export default {
 
         // No email at all used to fall through to registerLegacy() — an
         // unlimited, approval-free device factory. Closed.
-        if (!email) return json({ ok: false, error: "invite_required" }, 403);
+        if (!email) return json({ ok: false, error: "invalid_email" }, 400);
         if (!isEmail(email))
           return json({ ok: false, error: "invalid_email" }, 400);
         if (!accountName)
           return json({ ok: false, error: "account_name_required" }, 400);
+        if (b.password && b.password.length < 8)
+          return json({ ok: false, error: "password_too_short" }, 400);
 
         const deviceId = String(b.deviceId || "").slice(0, 80);
+        const firstName = normalizeName(b.firstName || (b.displayName ? b.displayName.split(' ')[0] : ''));
+        const lastName = normalizeName(b.lastName || (b.displayName ? b.displayName.split(' ').slice(1).join(' ') : ''));
+        const phone = String(b.phone || "").trim().slice(0, 20);
         const info = {
           device: String(b.device || "Unknown").slice(0, 80),
           version: String(b.version || "").slice(0, 20),
           ua: String(b.ua || "").slice(0, 160),
+          firstName,
+          lastName,
+          phone,
         };
 
         let account = await getAccount(env, email);
@@ -353,15 +399,17 @@ export default {
         if (account && account.name && normalizeName(account.name) !== accountName)
           return json({ ok: false, error: "account_name_mismatch" }, 409);
         if (!account) {
-          // A new email only exists because an admin issued an invite for it.
-          const code = String(b.invite || "").trim().toUpperCase().slice(0, 40);
-          const invite = await getInvite(env, code);
-          if (!invite || invite.status !== "active")
-            return json({ ok: false, error: "invite_required" }, 403);
-
+          // Direct signup — no invite required. New accounts are approved
+          // immediately and get a fresh PIN.
           account = {
             email,
             name: accountName,
+            firstName,
+            lastName,
+            phone,
+            passwordHash: b.password ? await hashPassword(b.password) : null,
+            firebaseUid: b.firebaseUid || null,
+            googleSignIn: !!b.googleSignIn,
             pin: newPin(),
             fails: 0,
             lockUntil: 0,
@@ -370,16 +418,10 @@ export default {
             devices: [],
             deviceLimit: MAX_DEVICES,
             deviceRequests: [],
-            // Stays pending (and the PIN stays here) until the console approves.
-            status: "pending",
-            invite: code,
+            status: "approved",
             createdIp: ip,
             createdUa: info.ua,
           };
-          invite.status = "used";
-          invite.usedBy = email;
-          invite.usedAt = Date.now();
-          await putInvite(env, invite);
         } else if (!account.name) {
           account.name = accountName;
         }
@@ -444,12 +486,205 @@ export default {
           // Shown once on the device that creates the account. Later devices
           // share the same PIN, but aren't told it again — and a pending
           // account is never told it at all (clients poll /api/account-status).
-          pin: isNewAccount && status === "approved" ? account.pin : null,
+          pin: isNewAccount ? account.pin : null,
           devices: account.devices.length,
            deviceLimit,
           newAccount: isNewAccount,
           status,
         });
+      }
+
+      // ---------------- login --------------------------------------------------------------------------------
+      if (path === "/api/login" && request.method === "POST") {
+        const b = await request.json().catch(() => ({}));
+        const ip = clientIp(request);
+        const bearer = request.headers.get("Authorization") || "";
+        const bearerToken = bearer.startsWith("Bearer ") ? bearer.slice(7).trim() : "";
+        if (!rateOk("login:" + ip, REGISTER_RATE_LIMIT, REGISTER_RATE_WINDOW_MS))
+          return json({ ok: false, error: "rate_limited" }, 429);
+
+        // Firebase token login
+        const firebaseToken = b.firebaseToken || bearerToken;
+        if (firebaseToken) {
+          const claims = await verifyFirebaseToken(b.firebaseToken);
+          if (!claims) return json({ ok: false, error: "invalid_token" }, 401);
+          const email = normalizeEmail(claims.email || b.email);
+          if (!email || !isEmail(email))
+            return json({ ok: false, error: "invalid_email" }, 400);
+          const account = await getAccount(env, email);
+          if (!account)
+            return json({ ok: false, error: "not_found" }, 404);
+          // Verify the token matches the account's firebaseUid
+          if (account.firebaseUid && account.firebaseUid !== claims.sub)
+            return json({ ok: false, error: "invalid_token" }, 401);
+
+          const deviceId = String(b.deviceId || "").slice(0, 80);
+          let client = deviceId ? await findDevice(env, account, deviceId) : null;
+
+          if (!client) {
+            const ua = String(b.ua || "").slice(0, 160);
+            const device = String(b.device || "Unknown").slice(0, 80);
+            const version = String(b.version || "").slice(0, 20);
+            client = {
+              id: crypto.randomUUID(),
+              deviceId: deviceId || crypto.randomUUID(),
+              email,
+              ip,
+              device,
+              version,
+              ua,
+              createdAt: Date.now(),
+              lastSeen: Date.now(),
+              requests: [],
+            };
+            await putClient(env, client);
+            if (!account.devices.includes(client.id)) {
+              account.devices.push(client.id);
+              await putAccount(env, account);
+            }
+          } else {
+            Object.assign(client, { ip, lastSeen: Date.now(), ua, device, version });
+            await putClient(env, client);
+          }
+          account.lastSeen = Date.now();
+          await putAccount(env, account);
+
+          return json({
+            ok: true,
+            id: client.id,
+            email: account.email,
+            accountName: account.name,
+            firstName: account.firstName,
+            lastName: account.lastName,
+            phone: account.phone || '',
+          });
+        }
+
+        // Email/password login
+        const email = normalizeEmail(b.email);
+        if (!email || !isEmail(email))
+          return json({ ok: false, error: "invalid_email" }, 400);
+        if (!b.password)
+          return json({ ok: false, error: "missing_password" }, 400);
+
+        const account = await getAccount(env, email);
+        if (!account)
+          return json({ ok: false, error: "not_found" }, 404);
+
+        if (!account.passwordHash || !(await verifyPassword(account.passwordHash, b.password)))
+          return json({ ok: false, error: "invalid_credentials" }, 401);
+
+        // Look up or create a client record for this device so /api/verify can
+        // find it by id (clients are keyed by UUID, never by email).
+        const deviceId = String(b.deviceId || "").slice(0, 80);
+        let client = deviceId ? await findDevice(env, account, deviceId) : null;
+
+        if (!client) {
+          const ua = String(b.ua || "").slice(0, 160);
+          const device = String(b.device || "Unknown").slice(0, 80);
+          const version = String(b.version || "").slice(0, 20);
+          client = {
+            id: crypto.randomUUID(),
+            deviceId: deviceId || crypto.randomUUID(),
+            email,
+            ip,
+            device,
+            version,
+            ua,
+            createdAt: Date.now(),
+            lastSeen: Date.now(),
+            requests: [],
+          };
+          await putClient(env, client);
+          if (!account.devices.includes(client.id)) {
+            account.devices.push(client.id);
+            await putAccount(env, account);
+          }
+        } else {
+          Object.assign(client, { ip, lastSeen: Date.now(), ua, device, version });
+          await putClient(env, client);
+        }
+        account.lastSeen = Date.now();
+        await putAccount(env, account);
+
+        return json({
+          ok: true,
+          id: client.id,
+          email: account.email,
+          accountName: account.name,
+          firstName: account.firstName,
+          lastName: account.lastName,
+          phone: account.phone || '',
+        });
+      }
+
+      // ---------------- password reset ----------------
+      if (path === "/api/reset-request" && request.method === "POST") {
+        const b = await request.json().catch(() => ({}));
+        const ip = clientIp(request);
+        if (!rateOk("reset:" + ip, REGISTER_RATE_LIMIT, REGISTER_RATE_WINDOW_MS))
+          return json({ ok: false, error: "rate_limited" }, 429);
+
+        const email = normalizeEmail(b.email);
+        if (!email || !isEmail(email))
+          return json({ ok: false, error: "invalid_email" }, 400);
+
+        const account = await getAccount(env, email);
+        if (!account || !account.passwordHash)
+          // Don't reveal whether an account exists — always say success.
+          return json({ ok: true });
+
+        const token = crypto.randomUUID();
+        const expiresAt = Date.now() + 60 * 60_000; // 1 hour
+        const resetRecord = {
+          token,
+          email,
+          expiresAt,
+          used: false,
+          created: Date.now(),
+        };
+        await putDoc(env, "password_resets", "token", token, resetRecord);
+
+        // In production this would email the user a reset link.
+        // For now the token is returned so the client can complete the flow.
+        return json({ ok: true, token });
+      }
+
+      if (path === "/api/reset-confirm" && request.method === "POST") {
+        const b = await request.json().catch(() => ({}));
+        const ip = clientIp(request);
+        if (!rateOk("resetconfirm:" + ip, REGISTER_RATE_LIMIT, REGISTER_RATE_WINDOW_MS))
+          return json({ ok: false, error: "rate_limited" }, 429);
+
+        const token = String(b.token || "").trim();
+        const newPassword = String(b.password || "").trim();
+
+        if (!token)
+          return json({ ok: false, error: "missing_token" }, 400);
+        if (!newPassword || newPassword.length < 8)
+          return json({ ok: false, error: "password_too_short" }, 400);
+
+        const row = await getDoc(env, "SELECT data FROM password_resets WHERE token = ?", token);
+        if (!row)
+          return json({ ok: false, error: "invalid_token" }, 400);
+
+        if (row.used || row.expiresAt < Date.now())
+          return json({ ok: false, error: "token_expired" }, 400);
+
+        const account = await getAccount(env, row.email);
+        if (!account || !account.passwordHash)
+          return json({ ok: false, error: "unknown_account" }, 404);
+
+        account.passwordHash = await hashPassword(newPassword);
+        account.fails = 0;
+        account.lockUntil = 0;
+        await putAccount(env, account);
+
+        // Invalidate the token
+        row.used = true;
+        await putDoc(env, "password_resets", "token", token, row);
+
+        return json({ ok: true });
       }
 
       // ---------------- pending-account polling ----------------
@@ -509,6 +744,29 @@ export default {
 
       if (path === "/api/verify" && request.method === "POST") {
         const b = await request.json().catch(() => ({}));
+        const bearer = request.headers.get("Authorization") || "";
+        const bearerToken = bearer.startsWith("Bearer ") ? bearer.slice(7).trim() : "";
+
+        // Firebase token verification (from body or Authorization header)
+        const firebaseToken = b.firebaseToken || bearerToken;
+        if (firebaseToken) {
+          const claims = await verifyFirebaseToken(firebaseToken);
+          if (!claims) return json({ ok: false, error: "invalid_token" }, 401);
+          const email = normalizeEmail(claims.email || '');
+          const account = email ? await getAccount(env, email) : null;
+          if (!account) return json({ ok: false, error: "unknown account" }, 404);
+          if (accountStatus(account) !== "approved")
+            return json({ ok: false, error: "account_pending" }, 403);
+          if (account.firebaseUid && account.firebaseUid !== claims.sub)
+            return json({ ok: false, error: "invalid_token" }, 401);
+          account.fails = 0;
+          account.lockUntil = 0;
+          account.lastSeen = Date.now();
+          await putAccount(env, account);
+          return json({ ok: true, email: account.email });
+        }
+
+        // PIN verification
         const c = await getClient(env, String(b.id || ""));
         if (!c) return json({ ok: false, error: "unknown client" }, 404);
 
@@ -575,153 +833,26 @@ export default {
         return json({ status: r ? r.status : "unknown" });
       }
 
-      // ---------------- parent console (Google sign-in) ----------------
+      // ---------------- landing page ----------------
 
       if (path === "/") {
-        return new Response(PANEL, {
+        return new Response(LANDING_PAGE, {
           headers: { "Content-Type": "text/html; charset=utf-8" },
         });
       }
 
-      if (path === "/api/admin/list") {
-        if (!(await requireParent(request))) return unauthorized();
-        const [accounts, clients, invites] = await Promise.all([
-          allAccounts(env),
-          allClients(env),
-          allInvites(env),
-        ]);
-        return json({
-          accounts,
-          legacy: clients.filter((c) => !c.email),
-          invites,
-          maxDevices: MAX_DEVICES,
+      // ---------------- legal pages ----------------
+
+      if (path === "/privacy" || path === "/privacy/") {
+        return new Response(legalPage("Privacy Policy", PRIVACY_BODY), {
+          headers: { "Content-Type": "text/html; charset=utf-8" },
         });
       }
 
-      if (path.startsWith("/api/admin/") && request.method === "POST") {
-        // Legacy extension-account management still lives here; it's now
-        // gated by a parent's Google sign-in instead of Basic auth.
-        if (!(await requireParent(request))) return unauthorized();
-        const b = await request.json().catch(() => ({}));
-        const email = normalizeEmail(b.email);
-
-        // Account PIN (applies to every device on the email), or a legacy
-        // device's own PIN when no email is given.
-        if (path === "/api/admin/change-pin") {
-          const pin = String(b.pin || "").trim();
-          if (!/^\d{4,8}$/.test(pin))
-            return json({ ok: false, error: "PIN must be 4-8 digits" });
-
-          if (email) {
-            const a = await getAccount(env, email);
-            if (!a) return json({ ok: false, error: "unknown account" }, 404);
-            a.pin = pin;
-            a.fails = 0;
-            a.lockUntil = 0;
-            await putAccount(env, a);
-            return json({ ok: true, pin, email });
-          }
-
-          const c = await getClient(env, String(b.id || ""));
-          if (!c) return json({ ok: false, error: "unknown device" }, 404);
-          c.pin = pin;
-          c.fails = 0;
-          c.lockUntil = 0;
-          await putClient(env, c);
-          return json({ ok: true, pin });
-        }
-
-        // Approve / deny a newly registered account. Deny deletes it (and its
-        // devices) — the invite it was created with is already spent.
-        if (path === "/api/admin/account-decision") {
-          if (!email) return json({ ok: false, error: "missing email" });
-          const a = await getAccount(env, email);
-          if (!a) return json({ ok: false, error: "unknown account" }, 404);
-          if (b.decision === "approve") {
-            a.status = "approved";
-            a.approvedAt = Date.now();
-            a.fails = 0;
-            a.lockUntil = 0;
-            await putAccount(env, a);
-            return json({ ok: true, status: "approved" });
-          }
-          for (const id of a.devices || []) await deleteClient(env, id);
-          await deleteAccount(env, email);
-          return json({ ok: true, status: "deleted" });
-        }
-
-        // Invite codes: one code, one new account, spent on use.
-        if (path === "/api/admin/invite") {
-          const invite = {
-            code: newInviteCode(),
-            note: String(b.note || "").slice(0, 80),
-            status: "active",
-            createdAt: Date.now(),
-            usedBy: null,
-            usedAt: 0,
-          };
-          await putInvite(env, invite);
-          return json({ ok: true, invite });
-        }
-
-        if (path === "/api/admin/invite-revoke") {
-          const code = String(b.code || "").trim().toUpperCase();
-          const invite = await getInvite(env, code);
-          if (!invite) return json({ ok: false, error: "unknown invite" }, 404);
-          if (invite.status === "active") invite.status = "revoked";
-          await putInvite(env, invite);
-          return json({ ok: true, invite });
-        }
-
-        if (path === "/api/admin/device-request") {
-          const a = await getAccount(env, email);
-          if (!a) return json({ ok: false, error: "unknown account" }, 404);
-          const r = (a.deviceRequests || []).find((x) => x.ticket === Number(b.ticket));
-          if (!r) return json({ ok: false, error: "no such request" });
-          if (b.decision === "approve") {
-            r.status = "approved";
-            a.deviceLimit = (Number(a.deviceLimit) || MAX_DEVICES) + 1;
-          } else {
-            r.status = "denied";
-          }
-          await putAccount(env, a);
-          return json({ ok: true, deviceLimit: a.deviceLimit });
-        }
-
-        if (path === "/api/admin/decide") {
-          const c = await getClient(env, String(b.id || ""));
-          if (!c) return json({ ok: false, error: "unknown device" }, 404);
-          const r = (c.requests || []).find((x) => x.ticket === Number(b.ticket));
-          if (!r) return json({ ok: false, error: "no such request" });
-          r.status = b.decision === "approve" ? "approved" : "denied";
-          await putClient(env, c);
-          return json({ ok: true });
-        }
-
-        // One device off the account — frees a slot for another device. With no
-        // email this is a legacy record, which is just a device.
-        if (path === "/api/admin/delete-device") {
-          const id = String(b.id || "");
-          if (!id) return json({ ok: false, error: "missing device id" });
-          if (email) {
-            const a = await getAccount(env, email);
-            if (!a) return json({ ok: false, error: "unknown account" }, 404);
-            a.devices = (a.devices || []).filter((x) => x !== id);
-            await putAccount(env, a);
-          }
-          await deleteClient(env, id);
-          return json({ ok: true });
-        }
-
-        // Whole account: the email plus every device on it.
-        if (path === "/api/admin/delete-account") {
-          if (!email) return json({ ok: false, error: "missing email" });
-          const a = await getAccount(env, email);
-          if (!a) return json({ ok: false, error: "unknown account" }, 404);
-          for (const id of a.devices || []) await deleteClient(env, id);
-          await deleteAccount(env, email);
-          return json({ ok: true });
-        }
+      if (path === "/terms" || path === "/terms/") {
+        return new Response(legalPage("Terms of Service", TERMS_BODY), {
+          headers: { "Content-Type": "text/html; charset=utf-8" },
+        });
       }
 
       return json({ ok: false, error: "not found" }, 404);
@@ -732,461 +863,457 @@ export default {
 };
 
 // ---------------------------------------------------------------------------
-// Admin console (single page, no build step)
+// Landing page
 // ---------------------------------------------------------------------------
-const PANEL = `<!DOCTYPE html>
+const LANDING_PAGE = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>SafeSight Family</title>
+<title>SafeSight — Image Content Filter</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
-  :root { color-scheme: dark; --bg:#0f172a; --card:#1e293b; --text:#f1f5f9; --muted:#94a3b8; --primary:#6366f1; --danger:#ef4444; --ok:#22c55e; --border:rgba(255,255,255,.08); }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--text); font:14px/1.45 -apple-system,system-ui,sans-serif; padding:24px; }
-  h1 { margin:0 0 4px; font-size:22px; } .sub { color:var(--muted); margin:0 0 20px; }
-  .grid { display:flex; flex-direction:column; gap:14px; max-width:1000px; }
-  .card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:14px 16px; }
-  .row { display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
-  .name { font-weight:700; font-size:15px; } .dev { color:var(--muted); font-size:12px; }
-  .id { font:11px ui-monospace,monospace; color:var(--muted); }
-  .pill { font-size:11px; padding:2px 8px; border-radius:999px; background:rgba(99,102,241,.18); color:#a5b4fc; }
-  .pill.full { background:rgba(217,119,6,.2); color:#fbbf24; }
-  .pill.legacy { background:rgba(148,163,184,.18); color:var(--muted); }
-  .pill.awaiting { background:rgba(249,115,22,.2); color:#fdba74; }
-  input, select, textarea { background:#0b1220; border:1px solid var(--border); color:var(--text); border-radius:8px; padding:6px 8px; font:13px ui-monospace,monospace; }
-  input { width:110px; }
-  textarea { width:100%; min-height:60px; font:13px ui-monospace,monospace; }
-  button { border:none; border-radius:8px; padding:6px 12px; font-weight:600; cursor:pointer; background:var(--primary); color:#fff; }
-  button.ok { background:var(--ok); } button.del { background:var(--danger); } button.ghost { background:rgba(148,163,184,.15); color:var(--muted); }
-  .device { border-top:1px solid var(--border); margin-top:10px; padding-top:10px; }
-  .req { background:rgba(255,255,255,.04); border-radius:8px; padding:8px 10px; margin-top:6px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; font-size:13px; }
-  .pending { color:#fbbf24; } .approved { color:var(--ok); } .denied { color:var(--danger); }
-  .empty { color:var(--muted); padding:30px; text-align:center; }
-  .meta { color:var(--muted); font-size:11px; }
-  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:18px 0 0; }
-  .code { font:700 24px ui-monospace,monospace; letter-spacing:.3em; color:#a5b4fc; }
-  #signin { max-width:420px; margin:60px auto; text-align:center; }
-  #signin button { padding:10px 18px; font-size:15px; }
-  .tabs { display:flex; gap:8px; margin-bottom:14px; }
-  .tabs button.on { background:var(--primary); }
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --primary: #6366f1;
+    --primary-hover: #4f46e5;
+    --border: rgba(255,255,255,.08);
+    --shadow: 0 20px 60px rgba(0,0,0,.4);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  .hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 80px 24px 60px;
+    background: radial-gradient(ellipse at 50% 0%, rgba(99,102,241,.15) 0%, transparent 70%);
+  }
+  .logo {
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+    background: linear-gradient(135deg, var(--primary), #a855f7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 32px rgba(99,102,241,.3);
+  }
+  .logo i {
+    font-size: 32px;
+    color: white;
+  }
+  h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin-bottom: 12px;
+  }
+  .tagline {
+    font-size: 1.15rem;
+    color: var(--muted);
+    max-width: 520px;
+    margin-bottom: 36px;
+  }
+  .cta-row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+    cursor: pointer;
+    border: none;
+  }
+  .btn-primary {
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 4px 16px rgba(99,102,241,.3);
+  }
+  .btn-primary:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+  }
+  .btn-outline {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .btn-outline:hover {
+    background: rgba(255,255,255,.05);
+  }
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+    max-width: 1000px;
+    margin: 60px auto;
+    padding: 0 24px;
+  }
+  .feature-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px 24px;
+    text-align: left;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .feature-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+  }
+  .feature-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: rgba(99,102,241,.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 16px;
+  }
+  .feature-icon i {
+    font-size: 20px;
+    color: var(--primary);
+  }
+  .feature-card h3 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .feature-card p {
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+  .footer {
+    text-align: center;
+    padding: 40px 24px;
+    color: var(--muted);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+  .footer a {
+    color: var(--primary);
+    text-decoration: none;
+  }
+  .footer a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
-<div id="signin" class="card" style="display:none">
-  <h1>🛡️ SafeSight Family</h1>
-  <p class="sub">Sign in as a parent to manage children, devices and unlock requests.</p>
-  <button id="googleBtn">Sign in with Google</button>
-  <p class="meta" id="authMsg"></p>
-</div>
 
-<div id="app" style="display:none">
-  <div class="row" style="max-width:1000px;margin-bottom:6px">
-    <h1>🛡️ SafeSight Family</h1>
-    <span style="flex:1"></span>
-    <span class="meta" id="who"></span>
-    <button class="ghost" id="signOutBtn">Sign out</button>
+<section class="hero">
+  <div class="logo">
+    <i class="fas fa-shield-halved"></i>
   </div>
-  <p class="sub">Children · pairing codes · devices · unlock requests · extension accounts</p>
-  <div class="tabs">
-    <button class="on" data-tab="family">Family</button>
-    <button data-tab="legacy">Extension accounts</button>
+  <h1>SafeSight</h1>
+  <p class="tagline">Protect your family from inappropriate images online. Real-time content filtering that works across all your devices.</p>
+  <div class="cta-row">
+    <a href="https://chromewebstore.google.com/detail/safesight/placeholder" class="btn btn-primary" target="_blank" rel="noopener">
+      <i class="fab fa-chrome"></i> Add to Chrome
+    </a>
+    <a href="https://addons.mozilla.org/firefox/addon/safesight/" class="btn btn-outline" target="_blank" rel="noopener">
+      <i class="fab fa-firefox"></i> Add for Firefox
+    </a>
   </div>
-  <div class="card" id="addCard" style="max-width:1000px;margin-bottom:14px">
-    <div class="row">
-      <span class="name">Add child</span>
-      <input id="childName" placeholder="name" style="width:180px">
-      <input id="childAge" placeholder="age band (e.g. 8-12)" style="width:150px">
-      <button data-act="child-add">Add child</button>
-      <span class="meta">Children's devices pair with a one-time code — the app applies its policy locally after that.</span>
+</section>
+
+<section class="features">
+  <div class="feature-card">
+    <div class="feature-icon">
+      <i class="fas fa-ban"></i>
     </div>
+    <h3>Block Inappropriate Images</h3>
+    <p>AI-powered image filtering detects and blocks NSFW content in real time as you browse.</p>
   </div>
-  <div class="grid" id="grid"><div class="empty">Loading…</div></div>
-</div>
+  <div class="feature-card">
+    <div class="feature-icon">
+      <i class="fas fa-brain"></i>
+    </div>
+    <h3>On-Device AI</h3>
+    <p>Powered by TensorFlow Lite. All processing happens locally — no images are uploaded or shared.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">
+      <i class="fas fa-sync-alt"></i>
+    </div>
+    <h3>Sync Across Devices</h3>
+    <p>Sign in with your Google account to sync your settings and blocklists across all your devices.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">
+      <i class="fas fa-sliders"></i>
+    </div>
+    <h3>Customizable Controls</h3>
+    <p>Adjust filter sensitivity, enable blur mode, and manage blocked sites from one simple dashboard.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">
+      <i class="fas fa-eye"></i>
+    </div>
+    <h3>Skin Filter</h3>
+    <p>Detects and covers skin pixels that may indicate inappropriate content, giving you an extra layer of protection.</p>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">
+      <i class="fas fa-lock"></i>
+    </div>
+    <h3>Privacy First</h3>
+    <p>Your data stays on your device. No tracking, no profiling, no cloud storage of your browsing activity.</p>
+  </div>
+</section>
 
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
-import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
-import {
-  getFirestore, doc, getDoc, setDoc, updateDoc, deleteDoc,
-  collection, query, where, getDocs, addDoc
-} from "https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js";
+<footer class="footer">
+  <p>SafeSight &copy; 2026. Built with <a href="https://www.tensorflow.org/lite" target="_blank" rel="noopener">TensorFlow Lite</a>.</p>
+  <p style="margin-top:8px;"><a href="https://github.com/yourusername/safesight" target="_blank" rel="noopener"><i class="fab fa-github"></i> View on GitHub</a></p>
+  <p style="margin-top:8px;"><a href="/privacy">Privacy Policy</a> &middot; <a href="/terms">Terms of Service</a></p>
+</footer>
 
-const firebaseConfig = {
-  apiKey: "AIzaSyAJ79A9ZSXT-MLyTlSlPC5bWk2x2eo2qAo",
-  authDomain: "safesight-3b61f.firebaseapp.com",
-  projectId: "safesight-3b61f",
-  storageBucket: "safesight-3b61f.firebasestorage.app",
-  messagingSenderId: "816580635380",
-  appId: "1:816580635380:web:738203cf7a5900034f8ca1"
-};
-const MAX_DEVICES = ${MAX_DEVICES};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-let idToken = null;
-let me = null;
-let tab = "family";
-
-const $ = (id) => document.getElementById(id);
-const signinEl = $("signin"), appEl = $("app");
-
-// The code *is* the doc id (same scheme as the apps): A-Z minus O/I.
-function newPairingCode() {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = crypto.getRandomValues(new Uint8Array(6));
-  let out = "";
-  for (const b of bytes) out += alphabet[b % alphabet.length];
-  return out;
-}
-
-// First sign-in: family first, then the users doc (rules require it).
-async function bootstrap(u) {
-  const snap = await getDoc(doc(db, "users", u.uid));
-  if (snap.exists()) return snap.data();
-  const famRef = doc(collection(db, "families"));
-  await setDoc(famRef, {
-    id: famRef.id, name: "Family", ownerUid: u.uid, memberUids: [u.uid],
-    createdAt: Date.now(), settings: {}
-  });
-  const profile = {
-    uid: u.uid, email: u.email || "", name: u.displayName || "",
-    picture: u.photoURL || "", role: "parent", familyId: famRef.id
-  };
-  await setDoc(doc(db, "users", u.uid), profile);
-  return profile;
-}
-
-async function famQuery(name, familyId) {
-  const snap = await getDocs(query(collection(db, name), where("familyId", "==", familyId)));
-  return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
-}
-
-// Legacy extension endpoints still live on the Worker (Bearer-token API).
-async function api(path, body, method) {
-  const m = method || (body ? "POST" : "GET");
-  for (let attempt = 0; attempt < 2; attempt++) {
-    if (!idToken && auth.currentUser) idToken = await auth.currentUser.getIdToken();
-    const r = await fetch(path, {
-      method: m,
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + idToken },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    if (r.status === 401 && attempt === 0 && auth.currentUser) {
-      idToken = await auth.currentUser.getIdToken(true);
-      continue;
-    }
-    if (r.status === 401) { signOut(auth); return { ok: false, error: "unauthorized" }; }
-    return r.json().catch(() => ({ ok: false }));
-  }
-  return { ok: false };
-}
-
-function fmt(ts) { return ts ? new Date(ts).toLocaleString() : "never"; }
-function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, m => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[m])); }
-
-// ---------- legacy extension-account bits (unchanged behavior) ----------
-function requests(c) {
-  const pending = (c.requests || []).filter(r => r.status === "pending").map(r =>
-    '<div class="req"><span class="pending">⏳</span><b>' + esc(r.action) + '</b><span class="meta">' + esc(r.detail || "") + " · " + fmt(r.at) + "</span>" +
-    '<span style="flex:1"></span>' +
-    '<button class="ok" data-act="decide" data-id="' + esc(c.id) + '" data-ticket="' + r.ticket + '" data-decision="approve">Approve</button>' +
-    '<button class="del" data-act="decide" data-id="' + esc(c.id) + '" data-ticket="' + r.ticket + '" data-decision="deny">Deny</button></div>').join("");
-  const history = (c.requests || []).filter(r => r.status !== "pending").slice(-3).map(r =>
-    '<div class="req"><span class="' + esc(r.status) + '">' + (r.status === "approved" ? "✅" : "❌") + "</span><b>" + esc(r.action) + '</b><span class="meta">' + esc(r.status) + " · " + fmt(r.at) + "</span></div>").join("");
-  return pending + history;
-}
-function deviceRequests(a) {
-  return (a.deviceRequests || []).filter(r => r.status === "pending").map(r =>
-    '<div class="req"><span class="pending">➕</span><b>Additional device</b><span class="meta">' + esc(r.device || "Unknown device") + " · " + fmt(r.at) + "</span>" +
-    '<span style="flex:1"></span>' +
-    '<button class="ok" data-act="device-request" data-email="' + esc(a.email) + '" data-ticket="' + r.ticket + '" data-decision="approve">Approve</button>' +
-    '<button class="del" data-act="device-request" data-email="' + esc(a.email) + '" data-ticket="' + r.ticket + '" data-decision="deny">Deny</button></div>').join("");
-}
-function device(c, email) {
-  return '<div class="device">' +
-    '<div class="row"><span class="pill">' + esc(c.device) + "</span>" +
-    (c.version ? '<span class="pill">v' + esc(c.version) + "</span>" : "") +
-    (c.ua ? '<span class="meta">' + esc(c.ua) + "</span>" : "") +
-    '<span style="flex:1"></span>' +
-    '<button class="ghost" data-act="remove-device" data-id="' + esc(c.id) + '" data-email="' + esc(email || "") + '" data-label="' + esc(c.device) + '">Remove device</button></div>' +
-    '<div class="id">' + esc(c.id) + "</div>" +
-    '<div class="meta">added ' + fmt(c.createdAt) + " · last seen " + fmt(c.lastSeen) +
-    (c.lockUntil > Date.now() ? " · 🔒 LOCKED" : "") + "</div>" +
-    requests(c) + "</div>";
-}
-function account(a) {
-  const devices = a.devices || [];
-  const limit = a.deviceLimit || MAX_DEVICES;
-  const full = devices.length >= limit;
-  const pending = (a.status || "approved") !== "approved";
-  return '<div class="card">' +
-    '<div class="row"><span class="name">' + esc(a.name || "Unnamed account") + '</span><span class="meta">' + esc(a.email) + "</span>" +
-    '<span class="pill' + (full ? " full" : "") + '">' + devices.length + " / " + limit + " devices</span>" +
-    (pending ? '<span class="pill awaiting">⛔ awaiting approval — locked</span>' : "") +
-    (a.lockUntil > Date.now() ? '<span class="pill full">🔒 locked</span>' : "") +
-    '<span style="flex:1"></span>' +
-    (pending
-      ? '<button class="ok" data-act="account-decision" data-email="' + esc(a.email) + '" data-decision="approve">Approve account</button> ' +
-        '<button class="del" data-act="account-decision" data-email="' + esc(a.email) + '" data-decision="deny">Deny</button>'
-      : "") +
-    '<span class="meta">PIN (all devices)</span><input class="pin" value="' + esc(a.pin) + '" maxlength="8">' +
-    '<button data-act="pin" data-email="' + esc(a.email) + '">Save</button>' +
-    '<button class="del" data-act="delete-account" data-email="' + esc(a.email) + '">Delete account</button></div>' +
-    '<div class="meta">registered ' + fmt(a.createdAt) + " · last seen " + fmt(a.lastSeen) +
-    (a.invite ? " · invite " + esc(a.invite) : "") + "</div>" +
-    deviceRequests(a) +
-    (devices.length ? devices.map(c => device(c, a.email)).join("") : '<div class="meta" style="margin-top:8px">No devices.</div>') +
-    "</div>";
-}
-function inviteCard(i) {
-  const active = i.status === "active";
-  return '<div class="card">' +
-    '<div class="row"><span class="name id">' + esc(i.code) + "</span>" +
-    '<span class="pill' + (active ? "" : " legacy") + '">' + esc(i.status || "active") + "</span>" +
-    (i.note ? '<span class="meta">' + esc(i.note) + "</span>" : "") +
-    '<span style="flex:1"></span>' +
-    (active
-      ? '<button class="ghost" data-act="copy-invite" data-code="' + esc(i.code) + '">Copy code</button> ' +
-        '<button class="del" data-act="invite-revoke" data-code="' + esc(i.code) + '">Revoke</button>'
-      : "") +
-    (i.usedBy ? '<span class="meta">used by ' + esc(i.usedBy) + " · " + fmt(i.usedAt) + "</span>" : "") +
-    "</div></div>";
-}
-function legacyCard(c) {
-  return '<div class="card">' +
-    '<div class="row"><span class="name">' + esc(c.name) + '</span><span class="pill legacy">legacy · own PIN</span>' +
-    '<span style="flex:1"></span>' +
-    '<span class="meta">PIN</span><input class="pin" value="' + esc(c.pin) + '" maxlength="8">' +
-    '<button data-act="pin" data-id="' + esc(c.id) + '">Save</button>' +
-    '<button class="del" data-act="remove-device" data-id="' + esc(c.id) + '" data-email="" data-label="' + esc(c.name) + '">Delete</button></div>' +
-    device(c, "") + "</div>";
-}
-
-// ---------- family bits ----------
-function childCard(c, devices, unlocks) {
-  const cds = devices.filter(d => d.childId === c.id);
-  const reqs = unlocks.filter(u => u.childId === c.id && u.status === "pending");
-  const pol = c.policy || {};
-  return '<div class="card">' +
-    '<div class="row"><span class="name">' + esc(c.name) + "</span>" +
-    (c.ageBand ? '<span class="pill">ages ' + esc(c.ageBand) + "</span>" : "") +
-    '<span class="pill">' + cds.length + " device" + (cds.length === 1 ? "" : "s") + "</span>" +
-    (reqs.length ? '<span class="pill awaiting">' + reqs.length + " unlock request" + (reqs.length === 1 ? "" : "s") + "</span>" : "") +
-    '<span style="flex:1"></span>' +
-    '<button data-act="pair" data-id="' + esc(c.id) + '">Pair device</button>' +
-    '<button class="ghost" data-act="child-edit" data-id="' + esc(c.id) + '">Edit</button>' +
-    '<button class="del" data-act="child-delete" data-id="' + esc(c.id) + '" data-label="' + esc(c.name) + '">Delete</button></div>' +
-    '<div class="meta" id="pairbox-' + esc(c.id) + '"></div>' +
-    '<div class="meta">blocked sites: ' + (pol.blockedSites || []).length +
-      " · sensitivity " + (pol.sensitivity != null ? pol.sensitivity : 50) +
-      " · screen time " + (pol.screenTimeMinutes ? pol.screenTimeMinutes + "m/day" : "unlimited") + "</div>" +
-    reqs.map(r =>
-      '<div class="req"><span class="pending">⏳</span><b>' + esc(r.action) + '</b><span class="meta">' + esc(r.detail || "") + " · " + esc(r.device || "") + " · " + fmt(r.at) + "</span>" +
-      '<span style="flex:1"></span>' +
-      '<button class="ok" data-act="unlock-decide" data-rid="' + esc(r.id) + '" data-decision="approve">Approve</button>' +
-      '<button class="del" data-act="unlock-decide" data-rid="' + esc(r.id) + '" data-decision="deny">Deny</button></div>').join("") +
-    cds.map(d =>
-      '<div class="device"><div class="row"><span class="pill">' + esc(d.device || "device") + "</span>" +
-      (d.platform ? '<span class="pill">' + esc(d.platform) + "</span>" : "") +
-      '<span class="meta">last seen ' + fmt(d.lastSeen) + '</span><span style="flex:1"></span>' +
-      '<button class="ghost" data-act="device-unpair" data-uid="' + esc(d.uid) + '" data-label="' + esc(d.device || d.uid) + '">Unpair</button></div>' +
-      '<div class="id">' + esc(d.uid) + "</div></div>").join("") +
-    (cds.length ? "" : '<div class="meta" style="margin-top:8px">No paired devices — hit “Pair device” and enter the code in the app.</div>') +
-    "</div>";
-}
-
-async function loadFamily() {
-  if (!me || !me.user) return '<div class="empty">Could not load family data.</div>';
-  const familyId = me.user.familyId;
-  const [children, devices, unlocks] = await Promise.all([
-    famQuery("children", familyId),
-    famQuery("devices", familyId),
-    famQuery("unlockRequests", familyId),
-  ]);
-  me.children = children;
-  me.devices = devices;
-  me.unlockRequests = unlocks;
-  if (!children.length)
-    return '<div class="empty">No children yet — add one above.</div>';
-  return children.map(c => childCard(c, devices, unlocks)).join("");
-}
-
-async function loadLegacy() {
-  const data = await api("/api/admin/list");
-  if (!data.ok) return '<div class="empty">Could not load extension accounts.</div>';
-  const accounts = data.accounts || [];
-  const legacy = data.legacy || [];
-  const invites = data.invites || [];
-  const awaiting = accounts.filter(a => (a.status || "approved") !== "approved");
-  const approved = accounts.filter(a => (a.status || "approved") === "approved");
-  const inviteBar =
-    '<div class="card"><div class="row">' +
-    '<span class="name">New extension invite code</span>' +
-    '<input id="inviteNote" placeholder="note (optional)" style="width:220px">' +
-    '<button data-act="invite-new">Create invite</button>' +
-    '<span class="meta">Chrome/Firefox extensions register with one of these — unchanged.</span>' +
-    "</div></div>";
-  const body =
-    (awaiting.length ? '<h2>Awaiting approval (locked)</h2>' + awaiting.map(account).join("") : "") +
-    (approved.length ? '<h2>Extension accounts</h2>' + approved.map(account).join("") : "") +
-    (invites.length ? '<h2>Invite codes</h2>' + invites.map(inviteCard).join("") : "") +
-    (legacy.length ? '<h2>Legacy devices</h2>' + legacy.map(legacyCard).join("") : "");
-  return inviteBar + (body || '<div class="empty">No extension accounts yet — create an invite code above.</div>');
-}
-
-async function load() {
-  const grid = $("grid");
-  grid.innerHTML = '<div class="empty">Loading…</div>';
-  grid.innerHTML = tab === "family" ? await loadFamily() : await loadLegacy();
-  if (me && me.user) $("who").textContent = (me.user.name || "") + " · " + (me.user.email || "");
-}
-
-// ---------- actions ----------
-document.addEventListener("click", async (e) => {
-  const tabBtn = e.target.closest("button[data-tab]");
-  if (tabBtn) {
-    tab = tabBtn.dataset.tab;
-    document.querySelectorAll(".tabs button").forEach(b => b.classList.toggle("on", b === tabBtn));
-    $("addCard").style.display = tab === "family" ? "" : "none";
-    return load();
-  }
-  const btn = e.target.closest("button[data-act]");
-  if (!btn) return;
-  const act = btn.dataset.act;
-  const id = btn.dataset.id || "";
-  btn.disabled = true;
-  try {
-    if (act === "child-add") {
-      const name = $("childName").value.trim(), age = $("childAge").value.trim();
-      if (!name) return alert("Enter the child's name.");
-      await addDoc(collection(db, "children"), {
-        familyId: me.user.familyId, name, ageBand: age,
-        policy: {
-          blockedSites: [], allowedSites: [], sensitivity: 50,
-          skinFilter: true, blurAll: false, screenTimeMinutes: 0, schedule: null
-        },
-        createdAt: Date.now(), updatedAt: Date.now()
-      });
-      $("childName").value = ""; $("childAge").value = "";
-    } else if (act === "child-delete") {
-      if (confirm('Delete "' + (btn.dataset.label || id) + '" and unpair their devices?')) {
-        await deleteDoc(doc(db, "children", id));
-        for (const d of (me.devices || []).filter(x => x.childId === id))
-          await deleteDoc(doc(db, "devices", d.uid));
-      }
-    } else if (act === "child-edit") {
-      const cur = me && (me.children || []).find(c => c.id === id);
-      if (!cur) return;
-      const name = prompt("Name:", cur.name);
-      if (name == null) return;
-      const age = prompt("Age band (e.g. 8-12):", cur.ageBand || "");
-      if (age == null) return;
-      const pol = cur.policy || {};
-      const blocked = prompt("Blocked sites (comma separated):", (pol.blockedSites || []).join(", "));
-      if (blocked == null) return;
-      const screen = prompt("Daily screen time in minutes (0 = unlimited):", String(pol.screenTimeMinutes || 0));
-      if (screen == null) return;
-      const sens = prompt("Sensitivity 0-100:", String(pol.sensitivity != null ? pol.sensitivity : 50));
-      if (sens == null) return;
-      await updateDoc(doc(db, "children", id), {
-        name, ageBand: age, updatedAt: Date.now(),
-        "policy.blockedSites": blocked.split(",").map(s => s.trim()).filter(Boolean),
-        "policy.screenTimeMinutes": Math.max(0, parseInt(screen, 10) || 0),
-        "policy.sensitivity": Math.min(100, Math.max(0, parseInt(sens, 10) || 50)),
-      });
-    } else if (act === "pair") {
-      // Code doubles as the doc id — same format the apps generate.
-      const code = newPairingCode();
-      const expiresAt = Date.now() + 10 * 60_000;
-      await setDoc(doc(db, "pairingCodes", code), {
-        code, familyId: me.user.familyId, childId: id,
-        createdAt: Date.now(), expiresAt, usedBy: null, usedAt: null
-      });
-      const box = $("pairbox-" + id);
-      if (box) {
-        box.innerHTML = 'Pairing code: <span class="code">' + esc(code) + "</span> · expires " + fmt(expiresAt) + " — enter it in the child's app.";
-        try { await navigator.clipboard.writeText(code); } catch (_) {}
-      }
-      return;
-    } else if (act === "unlock-decide") {
-      await updateDoc(doc(db, "unlockRequests", btn.dataset.rid), {
-        status: btn.dataset.decision === "approve" ? "approved" : "denied",
-        decidedAt: Date.now()
-      });
-    } else if (act === "device-unpair") {
-      if (confirm('Unpair "' + (btn.dataset.label || "") + '"?'))
-        await deleteDoc(doc(db, "devices", btn.dataset.uid));
-    } else if (act === "invite-new") {
-      const note = ($("inviteNote") || {}).value || "";
-      const r = await api("/api/admin/invite", { note });
-      if (r.ok) {
-        try { await navigator.clipboard.writeText(r.invite.code); } catch (_) {}
-        alert("Invite code created (copied):\\n\\n" + r.invite.code);
-        $("inviteNote").value = "";
-      } else alert(r.error || "failed");
-    } else if (act === "invite-revoke") {
-      if (confirm("Revoke invite " + btn.dataset.code + "?"))
-        await api("/api/admin/invite-revoke", { code: btn.dataset.code });
-    } else if (act === "copy-invite") {
-      try { await navigator.clipboard.writeText(btn.dataset.code); } catch (_) {}
-      alert("Copied: " + btn.dataset.code);
-    } else if (act === "account-decision") {
-      const approve = btn.dataset.decision === "approve";
-      if (approve || confirm("Deny this extension account? It and its devices are deleted."))
-        await api("/api/admin/account-decision", { email: btn.dataset.email, decision: btn.dataset.decision });
-    } else if (act === "pin") {
-      const pin = btn.closest(".row").querySelector("input.pin").value;
-      const r = await api("/api/admin/change-pin", btn.dataset.email ? { email: btn.dataset.email, pin } : { id, pin });
-      alert(r.ok ? "PIN updated" : (r.error || "failed"));
-    } else if (act === "delete-account") {
-      if (confirm("Delete this extension account and all of its devices?"))
-        await api("/api/admin/delete-account", { email: btn.dataset.email });
-    } else if (act === "remove-device") {
-      if (confirm("Remove device " + (btn.dataset.label || id) + "?"))
-        await api("/api/admin/delete-device", btn.dataset.email ? { email: btn.dataset.email, id } : { id });
-    } else if (act === "decide") {
-      await api("/api/admin/decide", { id, ticket: Number(btn.dataset.ticket), decision: btn.dataset.decision });
-    } else if (act === "device-request") {
-      await api("/api/admin/device-request", { email: btn.dataset.email, ticket: Number(btn.dataset.ticket), decision: btn.dataset.decision });
-    }
-  } finally {
-    btn.disabled = false;
-    if (act !== "pair") load(); // pair shows the code in-place; a reload would wipe it
-  }
-});
-
-$("googleBtn").addEventListener("click", () => {
-  signInWithPopup(auth, new GoogleAuthProvider()).catch(err => {
-    $("authMsg").textContent = err.message || String(err);
-  });
-});
-$("signOutBtn").addEventListener("click", () => signOut(auth));
-
-onAuthStateChanged(auth, async (u) => {
-  if (!u) {
-    signinEl.style.display = "";
-    appEl.style.display = "none";
-    idToken = null;
-    me = null;
-    return;
-  }
-  try {
-    // Creates the parent + family in Firestore on first sign-in.
-    const profile = await bootstrap(u);
-    me = { user: profile, children: [], devices: [], unlockRequests: [] };
-  } catch (err) {
-    $("authMsg").textContent = "Sign-in failed: " + (err.message || String(err));
-    await signOut(auth);
-    return;
-  }
-  signinEl.style.display = "none";
-  appEl.style.display = "";
-  $("authMsg").textContent = "";
-  $("who").textContent = (me.user.name || "") + " · " + (me.user.email || "");
-  load();
-});
-</script>
 </body>
 </html>`;
+
+// ---------------------------------------------------------------------------
+// Legal pages: /privacy and /terms
+// ---------------------------------------------------------------------------
+function legalPage(title, body) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title} — SafeSight</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --card: #1e293b;
+    --text: #f1f5f9;
+    --muted: #94a3b8;
+    --primary: #6366f1;
+    --border: rgba(255,255,255,.08);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.65;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  .wrap {
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 48px 24px 24px;
+    flex: 1;
+  }
+  .back {
+    display: inline-block;
+    margin-bottom: 28px;
+    font-size: .92rem;
+    color: var(--primary);
+    text-decoration: none;
+  }
+  .back:hover { text-decoration: underline; }
+  h1 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    margin-bottom: 6px;
+  }
+  .updated { color: var(--muted); font-size: .9rem; margin-bottom: 36px; }
+  h2 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 30px 0 10px;
+    color: var(--text);
+  }
+  p, li { color: #cbd5e1; font-size: .98rem; }
+  p { margin-bottom: 12px; }
+  ul { margin: 0 0 14px 22px; }
+  li { margin-bottom: 7px; }
+  a { color: var(--primary); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .footer {
+    text-align: center;
+    padding: 32px 24px 44px;
+    color: var(--muted);
+    font-size: .85rem;
+    border-top: 1px solid var(--border);
+    margin-top: 44px;
+  }
+  .footer a { color: var(--primary); }
+</style>
+</head>
+<body>
+
+<main class="wrap">
+  <a class="back" href="/">&larr; Back to SafeSight</a>
+  <h1>${title}</h1>
+  <p class="updated">Effective October 9, 2026</p>
+  ${body}
+</main>
+
+<footer class="footer">
+  <p>SafeSight &copy; 2026 &middot; <a href="/privacy">Privacy Policy</a> &middot; <a href="/terms">Terms of Service</a></p>
+</footer>
+
+</body>
+</html>`;
+}
+
+const PRIVACY_BODY = `
+<p>SafeSight is an on-device content safety tool: it scores images locally, blocks
+unwanted sites and apps, and syncs only account metadata. This policy explains what
+we store, what we never see, and the little bit of data that does leave your device.</p>
+
+<h2>What never leaves your device</h2>
+<ul>
+  <li><strong>Image pixels.</strong> Every image is drawn to a 224x224 canvas and scored by
+      the LiteRT model on your own device. There is no upload path for image bytes.</li>
+  <li><strong>Scores and verdicts.</strong> The 0-to-10 score and your sensitivity threshold
+      stay local.</li>
+  <li><strong>Browsing activity.</strong> SafeSight does not build a history of the pages or
+      images you view. On Android, the DNS firewall answers DNS queries and does not proxy
+      or log web traffic.</li>
+</ul>
+
+<h2>Information we store</h2>
+<ul>
+  <li><strong>Account details:</strong> your email address, and your name and profile photo
+      if you sign in with Google. Held by Firebase Authentication.</li>
+  <li><strong>PIN:</strong> your settings PIN is stored only as a salted hash, verified
+      server-side so protected settings cannot be turned off without it.</li>
+  <li><strong>Device name and counters:</strong> images scanned and blocked, tracked per
+      device so your stats sync across your account.</li>
+  <li><strong>Invite records:</strong> invite codes and account status used during
+      registration.</li>
+</ul>
+
+<h2>How we use it</h2>
+<ul>
+  <li>To authenticate you and keep your settings, blocklists and statistics in sync.</li>
+  <li>To verify your PIN when a protected setting is changed.</li>
+  <li>To operate and improve the service. We do not sell your data or use it for
+      advertising or profiling.</li>
+</ul>
+
+<h2>Sign-in and third parties</h2>
+<p>Google Sign-In is provided through Google Firebase, which receives your email address,
+name and profile picture — the only scopes we request. The service itself runs on
+Cloudflare (edge worker and database) and Firebase (authentication and account data).
+These providers process data only on our instructions and to run the service.</p>
+
+<h2>Retention and deletion</h2>
+<p>Your account data is kept while your account exists. You can delete your account and
+its Firestore profile document at any time from your account, after which it is removed
+from our active databases. Server logs may be retained briefly for security and abuse
+prevention before being rolled off automatically.</p>
+
+<h2>Children</h2>
+<p>SafeSight is built for family use. Children should use it under the supervision of a
+parent or guardian, and should not create an account on their own if they are under the
+age of digital consent in their region.</p>
+
+<h2>Changes</h2>
+<p>If this policy changes in a material way, the effective date at the top of this page
+will be updated and continued use of the service means you accept the revised policy.</p>
+
+<h2>Contact</h2>
+<p>Questions about this policy? Open an issue at
+<a href="https://github.com/yourusername/safesight" target="_blank" rel="noopener">github.com/yourusername/safesight</a>
+or use the support contact listed in the extension store listing.</p>
+`;
+
+const TERMS_BODY = `
+<p>These Terms of Service govern your use of SafeSight. By creating an account or using
+the extensions, apps or website, you agree to them.</p>
+
+<h2>1. The service</h2>
+<p>SafeSight provides on-device image filtering, site and app blocking, a DNS-based
+firewall on Android, and optional account sync of settings and statistics. New features
+may be added, changed or removed over time.</p>
+
+<h2>2. Accounts and security</h2>
+<ul>
+  <li>One account covers one device, with additional devices available as a paid add-on.</li>
+  <li>You are responsible for keeping your sign-in credentials and PIN safe. Anyone who
+      has your PIN can change protected settings.</li>
+  <li>Provide accurate registration information and tell us promptly if you believe your
+      account has been compromised.</li>
+</ul>
+
+<h2>3. Acceptable use</h2>
+<p>You agree not to:</p>
+<ul>
+  <li>Do not misuse the service, attempt to disrupt it, or access it by means other than
+      the interfaces we provide.</li>
+  <li>Do not use the service to violate any law or the rights of others.</li>
+</ul>
+
+<h2>4. Filtering is best-effort</h2>
+<p>SafeSight scores content with an on-device model and blocks known unwanted sites. It is
+a helper, not a guarantee: no filter is perfect, the extension is designed to fail open
+when the model cannot run, and DNS-based blocking can be escaped by apps using their own
+resolver or DNS-over-HTTPS. SafeSight does not replace supervision, device-level parental
+controls, or your own judgement.</p>
+
+<h2>5. Your content</h2>
+<p>Your images are processed on your own device and are never uploaded to us. You keep all
+rights to anything you view or store on your devices.</p>
+
+<h2>6. Paid features</h2>
+<p>Some features, such as additional devices, may be offered for a fee. Charges, if any,
+are disclosed before you buy, and paid features are non-refundable except where required
+by law.</p>
+
+<h2>7. No warranty</h2>
+<p>The service is provided "as is" and "as available", without warranties of any kind,
+express or implied, including fitness for a particular purpose, accuracy, and
+uninterrupted or error-free operation.</p>
+
+<h2>8. Limitation of liability</h2>
+<p>To the maximum extent permitted by law, SafeSight and its developers will not be liable
+for indirect, incidental, special, consequential or punitive damages, or any loss of
+data, profits or goodwill, arising from your use of the service. Our total liability for
+any claim is limited to the amount you paid us in the twelve months before the claim
+arose, or $50 if you have paid nothing.</p>
+
+<h2>9. Termination</h2>
+<p>You may stop using the service and delete your account at any time. We may suspend or
+terminate accounts that violate these terms, abuse the service, or create risk for other
+users. Sections that by their nature should survive termination will survive.</p>
+
+<h2>10. Changes to these terms</h2>
+<p>We may update these terms from time to time. The effective date at the top of this page
+will change when we do; continued use of the service after that means you accept the
+updated terms.</p>
+
+<h2>11. Contact</h2>
+<p>Questions about these terms? Open an issue at
+<a href="https://github.com/yourusername/safesight" target="_blank" rel="noopener">github.com/yourusername/safesight</a>
+or use the support contact listed in the extension store listing.</p>
+`;

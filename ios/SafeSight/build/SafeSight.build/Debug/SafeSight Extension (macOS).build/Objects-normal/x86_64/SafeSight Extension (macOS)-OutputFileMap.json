@@ -1,0 +1,19 @@
+{
+  "" : {
+    "diagnostics" : "/Users/joshcalvert/projects/SafeSight/ios/SafeSight/build/SafeSight.build/Debug/SafeSight Extension (macOS).build/Objects-normal/x86_64/SafeSight Extension (macOS)-primary.dia",
+    "emit-module-dependencies" : "/Users/joshcalvert/projects/SafeSight/ios/SafeSight/build/SafeSight.build/Debug/SafeSight Extension (macOS).build/Objects-normal/x86_64/SafeSight Extension (macOS)-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/joshcalvert/projects/SafeSight/ios/SafeSight/build/SafeSight.build/Debug/SafeSight Extension (macOS).build/Objects-normal/x86_64/SafeSight Extension (macOS)-primary-emit-module.dia",
+    "pch" : "/Users/joshcalvert/projects/SafeSight/ios/SafeSight/build/SafeSight.build/Debug/SafeSight Extension (macOS).build/Objects-normal/x86_64/SafeSight Extension (macOS)-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/joshcalvert/projects/SafeSight/ios/SafeSight/build/SafeSight.build/Debug/SafeSight Extension (macOS).build/Objects-normal/x86_64/SafeSight Extension (macOS)-primary.swiftdeps"
+  },
+  "/Users/joshcalvert/projects/SafeSight/ios/SafeSight/Shared (Extension)/SafariWebExtensionHandler.swift" : {
+    "const-values" : "/Users/joshcalvert/projects/SafeSight/ios/SafeSight/build/SafeSight.build/Debug/SafeSight Extension (macOS).build/Objects-normal/x86_64/SafariWebExtensionHandler.swiftconstvalues",
+    "dependencies" : "/Users/joshcalvert/projects/SafeSight/ios/SafeSight/build/SafeSight.build/Debug/SafeSight Extension (macOS).build/Objects-normal/x86_64/SafariWebExtensionHandler.d",
+    "diagnostics" : "/Users/joshcalvert/projects/SafeSight/ios/SafeSight/build/SafeSight.build/Debug/SafeSight Extension (macOS).build/Objects-normal/x86_64/SafariWebExtensionHandler.dia",
+    "index-unit-output-path" : "/SafeSight.build/Debug/SafeSight Extension (macOS).build/Objects-normal/x86_64/SafariWebExtensionHandler.o",
+    "llvm-bc" : "/Users/joshcalvert/projects/SafeSight/ios/SafeSight/build/SafeSight.build/Debug/SafeSight Extension (macOS).build/Objects-normal/x86_64/SafariWebExtensionHandler.bc",
+    "object" : "/Users/joshcalvert/projects/SafeSight/ios/SafeSight/build/SafeSight.build/Debug/SafeSight Extension (macOS).build/Objects-normal/x86_64/SafariWebExtensionHandler.o",
+    "swift-dependencies" : "/Users/joshcalvert/projects/SafeSight/ios/SafeSight/build/SafeSight.build/Debug/SafeSight Extension (macOS).build/Objects-normal/x86_64/SafariWebExtensionHandler.swiftdeps",
+    "swiftmodule" : "/Users/joshcalvert/projects/SafeSight/ios/SafeSight/build/SafeSight.build/Debug/SafeSight Extension (macOS).build/Objects-normal/x86_64/SafariWebExtensionHandler~partial.swiftmodule"
+  }
+}

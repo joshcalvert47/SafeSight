@@ -44,12 +44,14 @@
     },
 
     "content_security_policy": {
-        "extension_pages": "script-src 'self' 'wasm-unsafe-eval'; object-src 'self';"
+        "extension_pages": "script-src 'self' 'wasm-unsafe-eval' https://www.gstatic.com https://www.googleapis.com https://apis.google.com; object-src 'self';"
     },
 
     "web_accessible_resources": [
         {
             "resources": [
+                "login.html",
+                "login.js",
                 "litert.js",
                 "litert_wasm_utils.js",
                 "litert_wasm_internal.js",
@@ -59,7 +61,11 @@
                 "nsfw.tflite",
                 "blocked.html",
                 "blocked.js",
-                "blocklist.json"
+                "blocklist.json",
+                "icon.png",
+                "popup.html",
+                "popup.css",
+                "popup.js"
             ],
             "matches": [ "<all_urls>" ]
         }

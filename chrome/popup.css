@@ -25,8 +25,15 @@ body {
 .header {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 12px;
     margin-bottom: 24px;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
 /* The app icon is the popup's logo, on the same gradient tile the app's home
@@ -58,6 +65,205 @@ h2 {
     letter-spacing: -0.025em;
 }
 
+/* User Profile Section */
+.account-area {
+    position: relative;
+    flex-shrink: 0;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 8px 4px 10px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    font-family: inherit;
+    color: inherit;
+    max-width: 160px;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.user-profile:hover,
+.user-profile[aria-expanded="true"] {
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+.user-name {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.user-avatar {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), #a855f7);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-dot {
+    width: 7px;
+    height: 7px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
+}
+
+.status-dot.pending {
+    background: #f59e0b;
+    box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
+}
+
+.status-dot.locked {
+    background: var(--danger);
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
+}
+
+.sign-in-btn {
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: none;
+    background: var(--primary);
+    color: white;
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.sign-in-btn:hover {
+    background: var(--primary-hover);
+}
+
+.profile-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 232px;
+    background: var(--card-bg);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
+    z-index: 60;
+    padding: 10px;
+    text-align: left;
+    animation: menuIn 0.15s ease-out;
+}
+
+@keyframes menuIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.profile-menu-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.menu-avatar {
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), #a855f7);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.profile-menu-id {
+    min-width: 0;
+}
+
+.menu-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.menu-email {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.profile-menu-status {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 8px;
+    margin-bottom: 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+}
+
+.profile-menu-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.menu-action {
+    width: 100%;
+    text-align: left;
+    padding: 7px 8px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.menu-action:hover {
+    background: rgba(255, 255, 255, 0.07);
+}
+
+.menu-action:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.menu-action-danger {
+    color: var(--danger);
+}
+
+.menu-action-danger:hover {
+    background: rgba(239, 68, 68, 0.12);
+}
+
 .status-card {
     background: var(--card-bg);
     border-radius: 12px;
@@ -84,12 +290,12 @@ h2 {
     flex-direction: column;
 }
 
-.label-info span:first-child {
+.label-title {
     font-weight: 500;
     font-size: 0.95rem;
 }
 
-.label-info span:last-child {
+.label-desc {
     font-size: 0.75rem;
     color: var(--text-muted);
 }
@@ -357,7 +563,6 @@ input:checked+.slider:before {
     color: var(--text-muted);
 }
 
-/* Fixed, consistent fit: the popup itself never scrolls — only the list does. */
 html,
 body {
     height: auto;
@@ -492,13 +697,11 @@ h2 {
     font-size: 0.82rem;
 }
 
-#resetStats {
-    margin-top: 6px !important;
-}
-
 .footer {
-    margin-top: 6px;
-    font-size: 0.65rem;
+    text-align: center;
+    margin-top: 16px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
 }
 
 .admin-btn-secondary:hover {

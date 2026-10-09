@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SafeSight | Account</title>
+    <link rel="stylesheet" href="popup.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        html, body {
+            width: auto;
+            height: auto;
+            max-height: none;
+            overflow: visible;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: var(--bg);
+            padding: 32px 20px;
+            font-family: 'Outfit', sans-serif;
+        }
+        .login-card {
+            width: 100%;
+            max-width: 400px;
+            background: var(--card-bg);
+            padding: 40px 32px;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            text-align: center;
+            animation: slideUp 0.5s ease-out;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .card-section { display: none; }
+        .card-section.active { display: block; animation: fadeIn 0.3s ease; }
+        .logo-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 24px;
+        }
+        .logo-container .logo-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+        }
+        .logo-container .logo-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        h1 {
+            margin: 0 0 8px 0;
+            font-size: 1.75rem;
+            font-weight: 600;
+            color: var(--text);
+            letter-spacing: -0.02em;
+        }
+        p.subtitle {
+            margin: 0 0 32px 0;
+            color: var(--text-muted);
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        .form-group {
+            text-align: left;
+            margin-bottom: 20px;
+            position: relative;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: color 0.2s;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--line-strong);
+            background: var(--bg);
+            color: var(--text);
+            font-family: inherit;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.2s ease;
+            box-sizing: border-box;
+        }
+        .form-group input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+            background: rgba(15, 23, 42, 0.8);
+        }
+        .form-group input:invalid:not(:placeholder-shown) {
+            border-color: var(--danger);
+        }
+        .form-row {
+            display: flex;
+            gap: 12px;
+        }
+        .form-row .form-group {
+            flex: 1;
+        }
+        .google-btn {
+            width: 100%;
+            padding: 13px;
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            background: white;
+            color: #3c4043;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-family: inherit;
+            margin-top: 8px;
+        }
+        .google-btn:hover {
+            background: #f8f9fa;
+            border-color: rgba(255,255,255,0.25);
+        }
+        .google-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        .google-btn i {
+            font-size: 1.2rem;
+        }
+        #loginMessage {
+            margin-top: 20px;
+            font-size: 0.85rem;
+            padding: 14px;
+            border-radius: 12px;
+            display: none;
+            animation: fadeIn 0.3s ease;
+            line-height: 1.4;
+            text-align: left;
+        }
+        .field-hint {
+            display: block;
+            margin-top: 6px;
+            font-size: 0.72rem;
+            color: var(--text-muted);
+        }
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            background: var(--primary);
+            color: white;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            font-family: inherit;
+        }
+        .btn-submit:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+        }
+        .btn-submit:active {
+            transform: translateY(0);
+        }
+        .btn-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .btn-secondary {
+            width: 100%;
+            padding: 11px;
+            margin-top: 10px;
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            background: transparent;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+        .btn-secondary:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+        .btn-danger {
+            color: var(--danger);
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+        #message, #manageMessage {
+            margin-top: 20px;
+            font-size: 0.85rem;
+            padding: 14px;
+            border-radius: 12px;
+            display: none;
+            animation: fadeIn 0.3s ease;
+            line-height: 1.4;
+            text-align: left;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .msg-error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            display: block !important;
+        }
+        .msg-success {
+            background: rgba(34, 197, 94, 0.1);
+            color: var(--success);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            display: block !important;
+        }
+        .msg-info {
+            background: rgba(99, 102, 241, 0.1);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            display: block !important;
+        }
+        .spinner {
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+            display: none;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .pin-box {
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: 0.35em;
+            color: var(--text);
+            background: var(--bg);
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 14px;
+            padding: 18px 10px 18px 20px;
+            margin-bottom: 8px;
+            user-select: all;
+        }
+        .account-grid {
+            text-align: left;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 6px 14px;
+            margin-bottom: 20px;
+        }
+        .account-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            padding: 9px 0;
+            font-size: 0.85rem;
+        }
+        .account-row + .account-row {
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .account-row .k {
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+        .account-row .v {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 24px 0;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="login-card">
+        <div class="logo-container" style="margin:0;">
+            <div class="logo-icon"><img src="icon.png" alt="SafeSight"></div>
+        </div>
+
+        <div id="googleView" class="card-section active">
+            <h1>Sign in to SafeSight</h1>
+            <p class="subtitle">Use your Google account to sign in and sync across devices.</p>
+
+            <button id="googleBtn" class="google-btn">
+                <i class="fab fa-google"></i>
+                <span>Sign in with Google</span>
+            </button>
+
+            <div class="divider">
+                <span>or</span>
+            </div>
+
+            <form id="loginForm" style="text-align:center;">
+                <div class="form-group" style="max-width:280px;margin:0 auto;">
+                    <label for="loginEmail">Email Address</label>
+                    <input type="email" id="loginEmail" placeholder="jane@example.com" required autocomplete="email" maxlength="120">
+                </div>
+                <div class="form-group" style="max-width:280px;margin:0 auto;">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" placeholder="Your password" required autocomplete="current-password" maxlength="128">
+                </div>
+                <button type="submit" id="loginSubmitBtn" class="btn-submit" style="margin-top:16px;">
+                    <span class="spinner" id="loginSpinner"></span>
+                    <span id="loginBtnText">Sign In</span>
+                </button>
+            </form>
+
+            <div style="margin-top:16px;">
+                <button id="forgotPwdBtn" class="btn-secondary" style="width:auto; padding:8px 16px; margin:0; border-radius:999px;">Forgot password?</button>
+            </div>
+
+            <div id="loginMessage"></div>
+        </div>
+
+        <div id="resetView" class="card-section">
+            <h1>Reset your password</h1>
+            <p class="subtitle">We'll send a reset link to your email.</p>
+
+            <form id="resetRequestForm">
+                <div class="form-group">
+                    <label for="resetEmail">Email Address</label>
+                    <input type="email" id="resetEmail" placeholder="jane@example.com" required autocomplete="email" maxlength="120" autofocus>
+                </div>
+                <button type="submit" id="resetRequestBtn" class="btn-submit">
+                    <span class="spinner" id="resetRequestSpinner"></span>
+                    <span id="resetRequestBtnText">Send Reset Link</span>
+                </button>
+            </form>
+
+            <div id="resetMessage"></div>
+        </div>
+
+        <div id="resetCodeView" class="card-section">
+            <h1>Enter reset code</h1>
+            <p class="subtitle">Check your email for a reset code and enter it below.</p>
+
+            <form id="resetCodeForm">
+                <div class="form-group">
+                    <label for="resetToken">Reset Code</label>
+                    <input type="text" id="resetToken" placeholder="Enter the code from your email" required autocomplete="off" maxlength="64" style="letter-spacing:0.1em;font-family:ui-monospace,monospace;">
+                </div>
+                <div class="form-group">
+                    <label for="newPassword">New Password</label>
+                    <input type="password" id="newPassword" placeholder="At least 8 characters" required autocomplete="new-password" maxlength="128" minlength="8">
+                </div>
+                <button type="submit" id="resetConfirmBtn" class="btn-submit">
+                    <span class="spinner" id="resetConfirmSpinner"></span>
+                    <span id="resetConfirmBtnText">Reset Password</span>
+                </button>
+            </form>
+
+            <div id="resetCodeMessage"></div>
+        </div>
+
+        <div id="pinView" class="card-section">
+            <h1>Your SafeSight PIN</h1>
+            <p id="pinSubtitle" class="subtitle">Write this down — it's required to manage blocked sites or change filters.</p>
+            <div id="pinBox" class="pin-box">0000</div>
+            <button id="copyPinBtn" class="btn-secondary">Copy PIN</button>
+            <button id="pinDoneBtn" class="btn-submit">I've saved it — done</button>
+        </div>
+
+        <div id="manageView" class="card-section">
+            <h1>Account</h1>
+            <p class="subtitle">SafeSight is active on this browser.</p>
+            <div class="account-grid">
+                <div class="account-row"><span class="k">Name</span><span id="mgName" class="v">—</span></div>
+                <div class="account-row"><span class="k">Email</span><span id="mgEmail" class="v">—</span></div>
+                <div class="account-row"><span class="k">Devices</span><span id="mgDevices" class="v">—</span></div>
+            </div>
+            <button id="mgForget" class="btn-secondary btn-danger">Forget this device</button>
+            <button id="mgClose" class="btn-secondary">Close</button>
+            <div id="manageMessage"></div>
+        </div>
+    </div>
+    <script type="module" src="login.js"></script>
+</body>
+</html>

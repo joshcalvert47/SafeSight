@@ -6,16 +6,12 @@
 //     shared 224x224 draw target is a detached DOM canvas.
 let config = { skinFilter: false, blurAll: false, sensitivity: 4, blockedSites: [], allowedSites: [], accountReady: false };
 const SKIN_COVERAGE_THRESHOLD = 0.12;
-const SCAN_TIMEOUT_MS = 5000; // Reveal if no verdict within 5s of the blur starting.
-// iOS cold-start: the model can legitimately take longer than SCAN_TIMEOUT_MS
-// to deliver its FIRST verdict (engine load + warm-up + first inference).
-// Revealing at 5s would un-blur every flagged image before any verdict ever
-// lands — the "images blur then unblur" bug. The deadline therefore only runs
-// once the engine has proven warm (first AI_RESULT); while cold it re-arms,
-// bounded by ENGINE_WARM_MAX_WAIT_MS so nothing is ever stuck blurred forever.
-const ENGINE_WARM_MAX_WAIT_MS = 60000;
+const SCAN_TIMEOUT_MS = 3000; // Reveal if no verdict within 3s of the blur starting.
+const ENGINE_WARM_MAX_WAIT_MS = 15000; // Cold-start grace: model load + compile on iOS.
 let engineWarm = false;
 let engineColdSinceMs = null;
+let modelReadyResolver = null;
+const modelReadyPromise = new Promise((resolve) => { modelReadyResolver = resolve; });
 const requestMap = new Map();
 const pendingBySrc = new Map(); // src -> imgs waiting on the same in-flight request
 let uniqueId = 0;
@@ -39,8 +35,7 @@ function isSiteBlocked() {
     return config.blockedSites.some((site) => hostMatchesSite(host, site));
 }
 
-// 0. SITE BLOCKLIST — hard navigation block. Defaults ship in blocklist.json;
-// user additions/removals live in storage alongside them.
+// 0. SITE BLOCKLIST
 const BLOCKLIST_KEYS = ['blocklistDefaults', 'blocklistUser', 'blocklistRemoved'];
 let blocklistDefaultsPromise = null;
 
@@ -114,7 +109,6 @@ async function enforceSiteBlock() {
         if (!/^https?:$/.test(location.protocol)) return;
         const host = location.hostname.replace(/^www\./, '');
         if (!host) return;
-        // Filters paused in the app: nothing is blocked.
         if (state.filtersEnabled === false) return;
         const quiet = isQuietNow(state);
         if (!quiet) {
@@ -123,25 +117,19 @@ async function enforceSiteBlock() {
             if (!isBlocked) return;
         }
         if (window.top !== window) {
-            // Blocked subframe: blank it instead of replacing the whole tab.
             location.replace('about:blank');
             return;
         }
-        // Main frame: ask the background to navigate so the redirect is
-        // extension-initiated (page-initiated jumps to extension pages are
-        // blocked in some browsers). Fall back to a self-redirect otherwise.
         const reason = quiet ? 'quiet' : '';
         chrome.runtime.sendMessage({ type: 'BLOCK_SITE_NAV', url: location.href, site: host, reason }, (resp) => {
             if (chrome.runtime.lastError || !resp || !resp.ok) {
-                try { location.replace(blockedPageUrl(location.href, host, reason)); } catch (e) { /* fail open */ }
+                try { location.replace(blockedPageUrl(location.href, host, reason)); } catch (e) { }
             }
         });
-    } catch (e) { /* fail open */ }
+    } catch (e) { }
 }
 enforceSiteBlock();
 
-// Safari MV3 lacks exclude_matches — mirror Chrome's excluded hosts here so
-// the rest of the pipeline never boots on them.
 const EXCLUDED_HOSTS = ['mail.google.com', 'discord.com'];
 function isExcludedPage() {
     try {
@@ -150,7 +138,6 @@ function isExcludedPage() {
 }
 
 if (!isExcludedPage()) {
-
 
 // 1. GLOBAL BLUR STYLES
 const styleId = 'ai-filter-styles';
@@ -163,7 +150,6 @@ function updateGlobalBlur() {
     }
 
     const css = `
-        /* Blur only until an image has been classified. */
         .ai-filter-target:not(.ai-safe):not([data-ai-checked="true"]) {
             filter: blur(75px) brightness(0.6) !important;
             transition: filter 0.5s ease-in-out !important;
@@ -202,6 +188,11 @@ function loadConfig() {
         config.allowedSites = Array.isArray(res.allowedSites) ? res.allowedSites : [];
         siteFilteringEnabled = !isSiteBlocked() || isSiteAllowed();
         updateGlobalBlur();
+        // The account flag can already be true here (returning visit, login
+        // completed earlier). The DOMContentLoaded start() below races this
+        // callback at document_start, so scan what is on the page as soon as
+        // storage answers instead of trusting the race.
+        if (config.accountReady) start();
     });
 }
 
@@ -220,7 +211,6 @@ chrome.storage.onChanged.addListener((changes) => {
 });
 
 // 3. RESULT HANDLING
-// Apply one completed analysis: stats, cache, duplicates, verdict.
 function finishRequest(request, finalScore) {
     const img = request.img;
     if (img && img.__aiTimer) { clearTimeout(img.__aiTimer); img.__aiTimer = null; }
@@ -234,8 +224,6 @@ function finishRequest(request, finalScore) {
     if (img) {
         if (request.src) {
             cacheVerdict(request.src, Number(finalScore));
-            // Apply the verdict to every duplicate of this image that was
-            // waiting on the same request (avatars, repeated thumbs).
             const waiting = pendingBySrc.get(request.src);
             if (waiting) {
                 pendingBySrc.delete(request.src);
@@ -249,12 +237,19 @@ function finishRequest(request, finalScore) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.type === 'AI_RESULT') {
-        // The engine produced a verdict: it is warm, so real reveal deadlines
-        // can start running from now on.
+    if (message.type === 'MODEL_READY') {
         if (!engineWarm) {
             engineWarm = true;
             engineColdSinceMs = null;
+            if (modelReadyResolver) { modelReadyResolver(); modelReadyResolver = null; }
+        }
+        return;
+    }
+    if (message.type === 'AI_RESULT') {
+        if (!engineWarm) {
+            engineWarm = true;
+            engineColdSinceMs = null;
+            if (modelReadyResolver) { modelReadyResolver(); modelReadyResolver = null; }
         }
         const { id, score } = message;
         const request = requestMap.get(id);
@@ -264,16 +259,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         const firstScore = Number(score);
         const sensitivity = config.sensitivity ?? 4;
 
-        // Second pass finished: average the two views. A localized violation
-        // the full-frame squash diluted pulls the average up; squash artifacts
-        // over a safe image pull it down — fewer misses and fewer false blurs.
         if (request.secondPass) {
             finishRequest(request, (request.firstScore + firstScore) / 2);
             return;
         }
 
-        // Borderline first verdict: re-measure on a center crop before
-        // deciding. Clear-cut verdicts skip the extra inference.
         if (request.cropRgbData && Math.abs(firstScore - sensitivity) <= 2) {
             const retryId = uniqueId++;
             requestMap.set(retryId, {
@@ -296,12 +286,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (message.type === 'SITE_TOGGLE') {
-        // Live switch of filtering for this tab (context menu "Disable on this site").
         siteFilteringEnabled = message.enabled;
         if (siteFilteringEnabled) {
             start();
         } else {
-            // Un-blur everything that was flagged or pending in this tab.
             document.querySelectorAll('.ai-filter-target').forEach((el) => {
                 el.classList.remove('ai-flagged', 'ai-safe', 'ai-filter-target');
             });
@@ -317,7 +305,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 function applyVerdict(img, score, skinOverlay) {
     if (img.__aiTimer) { clearTimeout(img.__aiTimer); img.__aiTimer = null; }
-    img.classList.add('ai-filter-target'); // ensure the verdict CSS applies
+    img.classList.add('ai-filter-target');
     img.dataset.aiChecked = "true";
     if (config.skinFilter) showSkinOverlay(img, skinOverlay);
 
@@ -332,8 +320,6 @@ function applyVerdict(img, score, skinOverlay) {
 
 
 // 4. IMAGE ACQUISITION
-// Try a direct canvas read first; if the image is cross-origin without CORS,
-// ask the background page to fetch it.
 function rgbaToRgb(rgbaData) {
     const rgbData = new Uint8Array(224 * 224 * 3);
     for (let i = 0, j = 0; i < 224 * 224; i++) {
@@ -344,9 +330,6 @@ function rgbaToRgb(rgbaData) {
     return rgbData;
 }
 
-// Second measurement: a square center crop at native resolution, so content
-// in one part of a wide/tall image isn't diluted by squashing the whole frame
-// into 224x224. Returns null when the source is unavailable.
 const cropCanvas = document.createElement('canvas');
 cropCanvas.width = 224;
 cropCanvas.height = 224;
@@ -386,9 +369,6 @@ function fetchImageBytes(src) {
 }
 
 async function extractPixels(img) {
-    // Same as the Chrome build: request the image in CORS mode so the canvas
-    // is never tainted and pixels can be read directly. Images without CORS
-    // headers fail to decode here and fall through to the background fetch.
     const src = getSource(img);
     if (!src) throw new Error("No source");
 
@@ -409,11 +389,10 @@ async function extractPixels(img) {
         sharedCtx.drawImage(tImg, 0, 0, 224, 224);
         try {
             rgbaData = sharedCtx.getImageData(0, 0, 224, 224).data;
-        } catch (e) { /* tainted canvas — fall through to background fetch */ }
+        } catch (e) { }
     }
 
     if (!rgbaData) {
-        // CORS-blocked or failed to decode — read it through the background page.
         const resp = await fetchImageBytes(src);
         sourceImg = await decodeBytesToImage(resp.bytes, resp.mime);
         sharedCtx.drawImage(sourceImg, 0, 0, 224, 224);
@@ -430,28 +409,38 @@ async function extractPixels(img) {
 }
 
 function getSource(img) {
-    let src = img.src || img.getAttribute('data-src');
-    if (!src && img.style.backgroundImage) {
-        src = img.style.backgroundImage.slice(4, -1).replace(/"/g, "");
+    const lazyAttrs = ['src', 'data-src', 'data-original', 'data-lazy-src', 'data-src-original'];
+    for (const attr of lazyAttrs) {
+        const val = img.getAttribute(attr);
+        if (val && val.length > 10) return val;
     }
-    if (!src && img.style.background) {
+
+    if (img.srcset) {
+        const parts = img.srcset.split(',');
+        if (parts.length > 0) {
+            const best = parts[parts.length - 1].trim().split(' ')[0];
+            if (best && best.length > 10) return best;
+        }
+    }
+
+    if (img.style.backgroundImage) {
+        return img.style.backgroundImage.slice(4, -1).replace(/"/g, "");
+    }
+    if (img.style.background) {
         const match = img.style.background.match(/url\(['"]?([^'"]+)['"]?\)/);
-        if (match) src = match[1];
+        if (match) return match[1];
     }
-    return src || null;
+    return null;
 }
 
 
 // 5. VERDICT CACHE
-// url -> { score } so SPA re-renders re-apply the old verdict instead of
-// accidentally un-blurring a previously flagged image.
 const verdictCache = new Map();
 const VERDICT_CACHE_LIMIT = 3000;
 
 function cacheVerdict(src, score) {
     if (!src) return;
     if (verdictCache.size >= VERDICT_CACHE_LIMIT) {
-        // Simple bound: drop the oldest entries.
         const drop = verdictCache.keys().next().value;
         verdictCache.delete(drop);
     }
@@ -473,8 +462,6 @@ function releasePendingSrc(img) {
     }
     img.__aiSrc = null;
 }
-// Detached DOM canvas instead of OffscreenCanvas (not exposed to content
-// scripts on iOS Safari).
 const sharedCanvas = document.createElement('canvas');
 sharedCanvas.width = 224;
 sharedCanvas.height = 224;
@@ -495,37 +482,39 @@ const intersectionObserver = new IntersectionObserver((entries) => {
 
 async function processImage(img) {
     if (!img || !config.accountReady || !siteFilteringEnabled) return;
+    // Don't start scanning until the model is warm — otherwise every image
+    // on the page gets blurred and re-armed independently while the engine
+    // loads, making the first paint feel very slow.
+    if (!engineWarm) {
+        try { await Promise.race([modelReadyPromise, timeout(2000)]); } catch { return; }
+        if (!engineWarm) return;
+    }
 
     const src = getSource(img);
-    // Only elements with an extractable URL are scannable. Never blur things
-    // we cannot analyze (canvases, CSS-class backgrounds, UI icons) — that
-    // is what caused random UI elements to stay blurred.
     if (!src) return;
     if (config.blurAll) return;
 
-    // Re-apply a cached verdict instead of trusting "safe".
     if (verdictCache.has(src)) {
         applyVerdict(img, verdictCache.get(src));
         return;
     }
-    // Tiny data URIs (icons/spacers) are not worth scanning.
     if (src.startsWith('data:') && src.length < 500) {
         return;
     }
 
-    // Mark for blur only NOW that we know we can actually scan it.
     img.classList.add('ai-filter-target');
-    // Force blur immediately via CSS (by ensuring .ai-safe is NOT present)
     img.classList.remove('ai-safe');
     img.dataset.aiWaiting = "true";
-    // The reveal deadline starts when the blur starts — NOT when analysis
-    // starts — so a scan-queue backlog can never hold images blurred.
     if (img.__aiTimer) clearTimeout(img.__aiTimer);
+    // iOS cold-start: the model can legitimately take longer than
+    // SCAN_TIMEOUT_MS to deliver its FIRST verdict (engine load + warm-up +
+    // first inference). Revealing at 5s would un-blur every flagged image
+    // before any verdict ever lands — the "images blur then unblur" bug. The
+    // deadline therefore only runs once the engine has proven warm (first
+    // AI_RESULT); while cold it re-arms, bounded by ENGINE_WARM_MAX_WAIT_MS so
+    // nothing is ever stuck blurred forever.
     if (!engineWarm && engineColdSinceMs === null) engineColdSinceMs = Date.now();
     img.__aiTimer = setTimeout(function revealDeadline() {
-        // Engine still cold: the first verdict cannot have landed yet, so
-        // revealing now would un-blur flagged images before any verdict ever
-        // arrives. Re-arm instead (bounded by ENGINE_WARM_MAX_WAIT_MS).
         if (!engineWarm && engineColdSinceMs !== null &&
             Date.now() - engineColdSinceMs < ENGINE_WARM_MAX_WAIT_MS) {
             img.__aiTimer = setTimeout(revealDeadline, SCAN_TIMEOUT_MS);
@@ -534,7 +523,6 @@ async function processImage(img) {
         delete img.dataset.aiWaiting;
         img.__aiTimer = null;
         releasePendingSrc(img);
-        // A real verdict may have landed in the meantime — never downgrade it.
         if (img.dataset.aiChecked === "true") return;
         applyVerdict(img, 0);
     }, SCAN_TIMEOUT_MS);
@@ -543,44 +531,28 @@ async function processImage(img) {
 
 function createSkinOverlay(rgbaData) {
     let skinPixels = 0;
-    let red = 0;
-    let green = 0;
-    let blue = 0;
-    let minX = 224;
-    let minY = 224;
-    let maxX = -1;
-    let maxY = -1;
+    let red = 0, green = 0, blue = 0;
+    let minX = 224, minY = 224, maxX = -1, maxY = -1;
     const pixelCount = rgbaData.length / 4;
     const skinMask = new Uint8Array(pixelCount);
 
     for (let i = 0, pixel = 0; i < rgbaData.length; i += 4, pixel++) {
-        const r = rgbaData[i];
-        const g = rgbaData[i + 1];
-        const b = rgbaData[i + 2];
-        const max = Math.max(r, g, b);
-        const min = Math.min(r, g, b);
+        const r = rgbaData[i], g = rgbaData[i + 1], b = rgbaData[i + 2];
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
         const brightness = (r + g + b) / 3;
         const total = r + g + b || 1;
-        const redShare = r / total;
-        const greenShare = g / total;
-        const blueShare = b / total;
-        // Relative chroma avoids rejecting any skin tone because of low absolute RGB values.
+        const redShare = r / total, greenShare = g / total, blueShare = b / total;
         const isSkin = brightness > 8 && max - min > 4 &&
             redShare >= greenShare * 0.96 && greenShare >= blueShare * 0.96 &&
             redShare > blueShare * 1.04;
 
         if (isSkin) {
-            const x = pixel % 224;
-            const y = Math.floor(pixel / 224);
+            const x = pixel % 224, y = Math.floor(pixel / 224);
             skinMask[pixel] = 1;
             skinPixels++;
-            minX = Math.min(minX, x);
-            minY = Math.min(minY, y);
-            maxX = Math.max(maxX, x);
-            maxY = Math.max(maxY, y);
-            red += r;
-            green += g;
-            blue += b;
+            minX = Math.min(minX, x); minY = Math.min(minY, y);
+            maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+            red += r; green += g; blue += b;
         }
     }
 
@@ -605,8 +577,7 @@ function createSkinOverlay(rgbaData) {
     maxY = Math.min(223, maxY + paddingY);
 
     for (let pixel = 0; pixel < pixelCount; pixel++) {
-        const x = pixel % 224;
-        const y = Math.floor(pixel / 224);
+        const x = pixel % 224, y = Math.floor(pixel / 224);
         const inDetectedRegion = x >= minX && x <= maxX && y >= minY && y <= maxY;
         if (!skinMask[pixel] && !inDetectedRegion) continue;
         const offset = pixel * 4;
@@ -622,14 +593,11 @@ function createSkinOverlay(rgbaData) {
 
 function showSkinOverlay(img, overlay) {
     if (!overlay || !img.isConnected) return;
-
     const container = img.tagName === 'IMG' ? img.parentElement : img;
     if (!container) return;
     if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
-
     const existing = container.querySelector('.ai-skin-overlay');
     if (existing) existing.remove();
-
     overlay.className = 'ai-skin-overlay';
     overlay.style.cssText = 'position:absolute; inset:0; width:100%; height:100%; pointer-events:none; z-index:2147483646;';
     container.appendChild(overlay);
@@ -647,8 +615,6 @@ async function runAnalysis(img) {
     activeProcesses++;
     try {
         const src = getSource(img);
-        // Dedupe: if the same URL is already being analyzed, piggyback on it
-        // instead of burning a pipeline slot (feeds repeat URLs constantly).
         if (src) {
             const pending = pendingBySrc.get(src);
             if (pending) {
@@ -661,21 +627,15 @@ async function runAnalysis(img) {
         }
 
         const { rgbData, skinCanvas, cropRgbData } = await extractPixels(img);
-
         const id = uniqueId++;
         requestMap.set(id, { img, skinOverlay: skinCanvas, timeoutId: img.__aiTimer || null, src, cropRgbData });
         chrome.runtime.sendMessage({
             type: 'ANALYZE',
             id,
-            // Chrome extension messaging is JSON-only: typed arrays arrive as
-            // {} on the other side, so send a plain array.
             payload: { data: Array.from(rgbData) }
         });
 
     } catch (e) {
-        // Unscannable (decode/CORS failure): reveal rather than randomly
-        // blurring half the page. Only inference results can flag an image.
-        // Any duplicates piggybacking on this request are revealed too.
         if (img.__aiTimer) { clearTimeout(img.__aiTimer); img.__aiTimer = null; }
         const failedSrc = img.__aiSrc;
         img.__aiSrc = null;
@@ -702,6 +662,10 @@ function start() {
     document.querySelectorAll('img, [style*="background-image"], [style*="url("]').forEach(processImage);
 }
 
+function timeout(ms) {
+    return new Promise((resolve, reject) => setTimeout(() => reject(new Error('timeout')), ms));
+}
+
 loadConfig();
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
 else start();
@@ -723,7 +687,7 @@ const observer = new MutationObserver(m => {
             const target = record.target;
             if (target.nodeType === 1) {
                 const attr = record.attributeName;
-                if (attr === 'style' || attr === 'src' || attr === 'data-src') {
+                if (attr === 'style' || attr === 'src' || attr === 'data-src' || attr === 'srcset' || attr === 'data-original') {
                     processImage(target);
                 }
             }
@@ -735,6 +699,7 @@ observer.observe(document.documentElement, {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ['src', 'style', 'data-src']
+    attributeFilter: ['src', 'style', 'data-src', 'srcset', 'data-original']
 });
+
 }

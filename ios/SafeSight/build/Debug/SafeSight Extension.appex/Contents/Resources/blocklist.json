@@ -1,0 +1,17 @@
+{
+    "description": "Default sites hard-blocked by SafeSight. Navigation to any listed host (and its subdomains) is replaced with blocked.html. Edit this file to change the shipped defaults; users can add/remove sites from the popup.",
+    "sites": [
+        "pornhub.com",
+        "xvideos.com",
+        "xnxx.com",
+        "xhamster.com",
+        "redtube.com",
+        "youporn.com",
+        "tube8.com",
+        "spankbang.com",
+        "beeg.com",
+        "bangbros.com",
+        "brazzers.com",
+        "tnaflix.com"
+    ]
+}

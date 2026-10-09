@@ -1,5 +1,21 @@
 // popup.js
 
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, getIdToken, disconnect } from "https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js";
+
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAJ79A9ZSXT-MLyTlSlPC5bWk2x2eo2qAo",
+  authDomain: "safesight-3b61f.firebaseapp.com",
+  projectId: "safesight-3b61f",
+  storageBucket: "safesight-3b61f.firebasestorage.app",
+  messagingSenderId: "816580635380",
+  appId: "1:816580635380:web:738203cf7a5900034f8ca1"
+};
+
+const app = initializeApp(FIREBASE_CONFIG);
+const auth = getAuth(app);
+const provider = new GoogleAuthProvider();
+
 const skinFilterCheck = document.getElementById('skinFilter');
 const blurAllCheck = document.getElementById('blurAll');
 const resetStatsBtn = document.getElementById('resetStats');
@@ -7,164 +23,149 @@ const sensitivityRange = document.getElementById('sensitivity');
 const sensitivityVal = document.getElementById('sensitivityVal');
 const statScanned = document.getElementById('statScanned');
 const statBlocked = document.getElementById('statBlocked');
+const profileBtn = document.getElementById('profileBtn');
+const signInBtn = document.getElementById('signInBtn');
+const profileMenu = document.getElementById('profileMenu');
+const userName = document.getElementById('userName');
+const userAvatar = document.getElementById('userAvatar');
+const userStatusDot = document.getElementById('userStatusDot');
 
 // ---------------------------------------------------------------------------
-// Blocked sites — hard navigation block.
-// Defaults ship in blocklist.json; user additions live in blocklistUser and
-// user removals of defaults in blocklistRemoved. Storage holds the edits,
-// content scripts + background enforce them.
+// Account
 // ---------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
-// Admin server (Cloudflare Worker): PIN-gated destructive changes.
-// The PIN lives only in the worker's KV — never on the device. Removing
-// blocked sites or disabling filters requires a server-side /api/verify check.
-// ---------------------------------------------------------------------------
-const WORKER_URL = "https://safesight.funbyte.net"; // TODO: your deployed worker
+const WORKER_URL = "https://safesight.funbyte.net";
+const ACCOUNT_KEYS = ['clientId', 'deviceId', 'accountEmail', 'accountName', 'accountReady', 'firebaseUid'];
 
-// Accounts are keyed by email: one email covers up to MAX_DEVICES devices —
-// this browser plus the app on your phone or Mac — and they all share the
-// account's single PIN. Keep in step with MAX_DEVICES in worker.js.
-const MAX_DEVICES = 2;
+let currentUser = null;
+let idToken = null;
 
-// Stable per-install id, so reinstalling (or this popup reopening with cleared
-// storage) reclaims its own slot instead of spending the account's second one.
-function deviceId() {
-    if (crypto.randomUUID) return crypto.randomUUID();
-    return 'dev-' + Date.now().toString(36) + Math.random().toString(36).slice(2);
+async function refreshToken() {
+    if (currentUser) {
+        idToken = await getIdToken(currentUser, true);
+    }
+    return idToken;
 }
 
-async function ensureRegistered() {
-    const res = await chrome.storage.local.get(['clientId', 'deviceId', 'accountEmail', 'accountName', 'accountReady', 'accountStatus']);
-    if (res.clientId && res.accountReady) {
-        await refreshAccountStatus();
-        return res.clientId;
+onAuthStateChanged(auth, async (user) => {
+    currentUser = user;
+    if (!user) {
+        idToken = null;
+        return;
     }
+    idToken = await getIdToken(user, true);
+    // Auto-register account on server after Google sign-in
+    await registerWithGoogle(user);
+    renderAccountUI();
+});
 
-    const accountName = (prompt('Welcome to SafeSight!\n\nWhat is the account name?') || '').trim();
-    if (!accountName) {
-        alert('An account name is required to use SafeSight.');
-        return null;
-    }
+async function registerWithGoogle(user) {
+    const res = await chrome.storage.local.get(ACCOUNT_KEYS);
+    if (res.accountReady) return; // Already registered
 
-    const email = (prompt('Which email should this account use?\n\nOne email covers up to ' + MAX_DEVICES + ' devices — they all share the same PIN.') || '').trim().toLowerCase();
-    if (!email) return null;
+    const email = user.email.toLowerCase();
+    const accountName = user.displayName || email.split('@')[0];
+    const firstName = (user.displayName || '').split(' ')[0] || '';
+    const lastName = ((user.displayName || '').split(' ').slice(1).join(' ') || '').trim() || '';
 
-    const invite = (prompt('Invite code from your admin\n\nRegistration is invite-only: ask the SafeSight admin to create a code for you. The account stays locked until they approve it.') || '').trim();
-    if (!invite) return null;
-
-    const id = res.deviceId || deviceId();
-    const ua = navigator.userAgent;
-    const device = 'Firefox / ' + (ua.includes('Mac') ? 'macOS' : ua.includes('Windows') ? 'Windows' : ua.includes('Linux') ? 'Linux' : 'other');
     try {
+        const id = crypto.randomUUID ? crypto.randomUUID() : 'dev-' + Date.now().toString(36);
+        const ua = navigator.userAgent;
+        const device = 'Chrome / ' + (ua.includes('Mac') ? 'macOS' : ua.includes('Windows') ? 'Windows' : ua.includes('Linux') ? 'Linux' : 'other');
+        let version = '0.0.0';
+        try { version = chrome?.runtime?.getManifest?.().version || '0.0.0'; } catch(e) {}
+
         const r = await fetch(WORKER_URL + '/api/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 email,
                 accountName,
-                invite,
+                firstName,
+                lastName,
+                phone: '',
+                password: '',
                 deviceId: id,
                 device,
-                version: chrome.runtime.getManifest().version,
-                ua: ua.slice(0, 160)
+                version,
+                ua: ua.slice(0, 160),
+                firebaseUid: user.uid,
+                googleSignIn: true
             })
         });
-        const j = await r.json();
-        if (j.id) {
-            const status = j.status || 'approved';
+
+        const j = await r.json().catch(() => ({}));
+
+        if (r.ok && j.id) {
             await chrome.storage.local.set({
                 clientId: j.id,
                 deviceId: id,
                 accountEmail: j.email || email,
                 accountName: j.accountName || accountName,
                 accountReady: true,
-                accountStatus: status
+                firebaseUid: user.uid
             });
-            applyAccountLock(status);
-            if (status !== 'approved') {
-                alert('Registered — but this account is waiting for admin approval.\n\nSafeSight stays locked (no settings can be weakened) until the admin approves it in the console.');
-            } else if (j.pin) {
-                alert('Welcome to SafeSight!\n\nYour SafeSight PIN is:\n\n' + j.pin + '\n\nWrite it down — it\'s required to remove blocked sites or turn filters off. The same PIN works on your other device, and the admin can see it in the console.');
-            } else if (!j.rejoined) {
-                alert('Browser added to the ' + (j.email || email) + ' account.\n\nUse the PIN you set up on your other device.');
-            }
-            return j.id;
         }
-        if (j.error === 'invite_required') {
-            alert('A valid invite code is required to create an account.\n\nAsk the SafeSight admin for a code, then try again.');
-        } else if (j.error === 'rate_limited') {
-            alert('Too many attempts from this network — try again in a few minutes.');
-        } else if (j.error === 'device_limit') {
-            alert('That email already has ' + (j.deviceLimit || MAX_DEVICES) + ' devices.\n\nRemove one in the admin console, or register with a different email.');
-        } else if (j.error === 'invalid_email') {
-            alert('That doesn\'t look like an email address — try again.');
-        } else if (j.error === 'account_name_required' || j.error === 'account_name_mismatch') {
-            alert(j.error === 'account_name_mismatch'
-                ? 'That account name does not match the existing account.'
-                : 'An account name is required.');
-        }
-    } catch (e) { /* offline — retry next popup open */ }
+    } catch (err) {
+        console.error('Auto-register error:', err);
+    }
+}
+
+async function ensureRegistered() {
+    const res = await chrome.storage.local.get(['clientId', 'accountReady']);
+    if (res.clientId && res.accountReady) {
+        return res.clientId;
+    }
+    // Don't open login page — let the user click the sign-in button in the popup
     return null;
 }
 
-// ---------------------------------------------------------------------------
-// Account approval state. A pending account has no PIN to give, so the server
-// refuses every /api/verify — the popup mirrors that by locking its controls
-// and polling for the approval (which also hands over the PIN).
-// ---------------------------------------------------------------------------
-let accountStatus = 'approved';
-
-async function refreshAccountStatus() {
-    const res = await chrome.storage.local.get(['clientId', 'accountStatus']);
-    accountStatus = res.accountStatus || 'approved';
-    if (!res.clientId || accountStatus === 'approved') {
-        applyAccountLock(accountStatus);
-        return accountStatus;
-    }
-    try {
-        const r = await fetch(WORKER_URL + '/api/account-status?id=' + encodeURIComponent(res.clientId));
-        const j = await r.json();
-        if (j.ok) {
-            accountStatus = j.status || 'approved';
-            await chrome.storage.local.set({ accountStatus });
-            if (accountStatus === 'approved' && j.pin) {
-                alert('Your SafeSight account was approved by the admin.\n\nYour PIN is:\n\n' + j.pin + '\n\nWrite it down — it\'s required to remove blocked sites or turn filters off.');
-            }
-        }
-    } catch (e) { /* offline — next open will retry */ }
-    applyAccountLock(accountStatus);
-    return accountStatus;
-}
-
 function accountLocked() {
-    return accountStatus !== 'approved';
-}
-
-function applyAccountLock(status) {
-    const banner = document.getElementById('pendingBanner');
-    if (banner) banner.style.display = status === 'approved' ? 'none' : 'block';
-    // Locked: the sensitivity slider can only loosen protection, so it goes
-    // away entirely until the account is approved.
-    if (sensitivityRange) sensitivityRange.disabled = status !== 'approved';
-}
-
-async function lockedAlert() {
-    alert('Locked: this account is waiting for admin approval.\n\nNothing that weakens SafeSight can change until the admin approves it in the console.');
     return false;
 }
 
-// Returns true only when the admin server confirms the PIN for this device.
+async function lockedAlert() {
+    return false;
+}
+
 async function guardDestructive(action) {
     if (accountLocked()) return lockedAlert();
-    const id = await ensureRegistered();
-    if (!id) { alert('Registration is required first.'); return false; }
-    const pin = prompt('Enter the admin PIN to ' + action + ':');
+
+    // Try Firebase token first
+    if (currentUser) {
+        await refreshToken();
+        if (idToken) {
+            try {
+                const r = await fetch(WORKER_URL + '/api/verify', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + idToken
+                    },
+                    body: JSON.stringify({ id: (await chrome.storage.local.get('clientId'))?.clientId || '', action })
+                });
+                const j = await r.json();
+                if (j.ok) return true;
+                // If token verification fails, fall back to PIN
+            } catch (e) {
+                // Fall back to PIN
+            }
+        }
+    }
+
+    // Fallback: PIN verification
+    const res = await chrome.storage.local.get(['clientId', 'accountReady']);
+    if (!res.clientId || !res.accountReady) {
+        alert('Registration is required first.');
+        chrome.tabs.create({ url: chrome.runtime.getURL('login.html') });
+        return false;
+    }
+    const pin = prompt('Enter your PIN to ' + action + ':');
     if (!pin) return false;
     try {
         const r = await fetch(WORKER_URL + '/api/verify', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, pin: pin.trim(), action })
+            body: JSON.stringify({ id: res.clientId, pin: pin.trim(), action })
         });
         const j = await r.json();
         if (j.ok) return true;
@@ -176,8 +177,9 @@ async function guardDestructive(action) {
     return false;
 }
 
-ensureRegistered();
-
+// ---------------------------------------------------------------------------
+// Blocked sites
+// ---------------------------------------------------------------------------
 const BLOCKLIST_KEYS = ['blocklistDefaults', 'blocklistUser', 'blocklistRemoved'];
 const blockSiteInput = document.getElementById('blockSiteInput');
 const blockSiteAdd = document.getElementById('blockSiteAdd');
@@ -194,7 +196,7 @@ function normalizeSite(entry) {
     if (!s) return null;
     s = s.replace(/^[a-z][a-z0-9+.-]*:\/\//, '').split(/[\/?#]/)[0];
     s = s.split('@').pop().split(':')[0];
-    s = s.replace(/^\*\.?/, '').replace(/^www\./, '').replace(/\.$/, '');
+    s = s.replace(/^\*\\.?/, '').replace(/^www\./, '').replace(/\.$/, '');
     return s.includes('.') ? s : null;
 }
 
@@ -202,20 +204,16 @@ async function fetchDefaultBlocklist() {
     try {
         const res = await chrome.storage.local.get(['blocklistDefaults']);
         if (Array.isArray(res.blocklistDefaults)) return res.blocklistDefaults;
-    } catch (e) { /* fall through to file */ }
+    } catch (e) { }
     try {
         const resp = await fetch(chrome.runtime.getURL('blocklist.json'));
         const data = await resp.json();
         const list = Array.isArray(data) ? data : ((data && data.sites) || []);
         return list.map(normalizeSite).filter(Boolean);
-    } catch (e) {
-        return null;
-    }
+    } catch (e) { { } }
 }
 
 function effectiveBlockSites() {
-    // Shipped defaults stay hidden and locked: enforced from blocklist.json,
-    // but not listed, edited or removable here. Only user-added sites show.
     const seen = new Set();
     const entries = [];
     blockUser.forEach((site) => {
@@ -260,7 +258,6 @@ async function saveBlocklist() {
 
 async function removeBlockSite(entry) {
     if (!(await guardDestructive('remove "' + entry.site + '" from the block list'))) return;
-    // Only user-added sites can be removed; shipped defaults stay locked.
     blockUser = blockUser.filter((s) => s !== entry.site);
     await saveBlocklist();
     renderBlocklist();
@@ -276,7 +273,6 @@ async function addBlockSite() {
     const coveredByDefault = blockDefaults.some((d) => site === d || site.endsWith('.' + d));
     const inList = blockUser.includes(site);
     if (coveredByDefault || inList) {
-        // Locked: shipped defaults are already blocked and hidden from the list.
         blockSiteInput.value = '';
         blockSiteInput.placeholder = 'Already blocked';
         setTimeout(() => { blockSiteInput.placeholder = 'example.com'; }, 1500);
@@ -304,39 +300,121 @@ if (blockSiteInput) {
         const res = await chrome.storage.local.get(BLOCKLIST_KEYS);
         blockUser = Array.isArray(res.blocklistUser) ? res.blocklistUser : [];
         blockRemoved = Array.isArray(res.blocklistRemoved) ? res.blocklistRemoved : [];
-    } catch (e) { /* keep empty lists */ }
+    } catch (e) { }
     renderBlocklist();
 })();
 
 
 function getSensitivityLabel(val) {
     val = parseInt(val);
+    if (isNaN(val)) return 'Standard (4)';
     if (val <= 3) return `Relaxed (${val})`;
     if (val <= 6) return `Standard (${val})`;
     return `Strict (${val})`;
 }
 
-// Initial load
+function statusClass(status) {
+    return 'status-dot';
+}
+
+function statusLabel(status) {
+    return 'Active';
+}
+
+async function renderAccountUI() {
+    const res = await chrome.storage.local.get(['clientId', 'accountReady', 'accountName', 'accountEmail']);
+    const signedIn = !!(res.clientId && res.accountReady && res.accountName);
+
+    closeProfileMenu();
+    if (!signedIn) {
+        profileBtn.style.display = 'none';
+        signInBtn.style.display = 'inline-flex';
+        return;
+    }
+
+    signInBtn.style.display = 'none';
+    profileBtn.style.display = 'flex';
+
+    const name = res.accountName;
+    const initial = name.charAt(0).toUpperCase();
+
+    userName.textContent = name;
+    userAvatar.textContent = initial;
+    userStatusDot.title = 'Active';
+
+    document.getElementById('menuAvatar').textContent = initial;
+    document.getElementById('menuName').textContent = name;
+    document.getElementById('menuEmail').textContent = res.accountEmail || '';
+    document.getElementById('menuStatusText').textContent = 'Active';
+}
+
+function closeProfileMenu() {
+    if (!profileMenu) return;
+    profileMenu.style.display = 'none';
+    if (profileBtn) profileBtn.setAttribute('aria-expanded', 'false');
+}
+
+if (profileBtn) {
+    profileBtn.onclick = async (e) => {
+        e.stopPropagation();
+        const open = profileMenu.style.display === 'block';
+        profileMenu.style.display = open ? 'none' : 'block';
+        profileBtn.setAttribute('aria-expanded', String(!open));
+    };
+}
+
+if (profileMenu) profileMenu.onclick = (e) => e.stopPropagation();
+document.addEventListener('click', closeProfileMenu);
+
+if (signInBtn) {
+    signInBtn.onclick = async () => {
+        try {
+            await signInWithPopup(auth, provider);
+        } catch (err) {
+            if (err.code !== 'auth/popup-closed-by-user') {
+                console.error('Sign in error:', err);
+                alert('Sign in failed. Please try again.');
+            }
+        }
+    };
+}
+
+const menuAccount = document.getElementById('menuAccount');
+if (menuAccount) {
+    menuAccount.onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL('login.html') });
+}
+
+const menuSignOut = document.getElementById('menuSignOut');
+if (menuSignOut) {
+    menuSignOut.onclick = async () => {
+        if (!confirm('Sign out of SafeSight on this device?\n\nFilters keep running, but you will need to sign in again to manage them.')) return;
+        await disconnect();
+        await chrome.storage.local.remove(['clientId', 'deviceId', 'accountEmail', 'accountName', 'accountReady', 'firebaseUid']);
+        await renderAccountUI();
+    };
+}
+
 chrome.storage.local.get(['skinFilter', 'blurAll', 'sensitivity', 'scannedCount', 'blockedCount'], (res) => {
     skinFilterCheck.checked = !!res.skinFilter;
     blurAllCheck.checked = !!res.blurAll;
-
     const sens = res.sensitivity ?? 4;
     sensitivityRange.value = sens;
     sensitivityVal.innerText = getSensitivityLabel(sens);
-
     statScanned.innerText = res.scannedCount || 0;
     statBlocked.innerText = res.blockedCount || 0;
-
 });
 
-// Update stats in real-time if popup is open
-chrome.storage.onChanged.addListener((changes) => {
+renderAccountUI();
+
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local') return;
     if (changes.scannedCount) statScanned.innerText = changes.scannedCount.newValue;
     if (changes.blockedCount) statBlocked.innerText = changes.blockedCount.newValue;
+    if (changes.accountName || changes.accountEmail || changes.accountReady || changes.clientId) {
+        renderAccountUI();
+    }
 });
 
-// Settings handlers
 skinFilterCheck.onchange = async () => {
     if (!skinFilterCheck.checked) {
         if (accountLocked()) { skinFilterCheck.checked = true; lockedAlert(); return; }
@@ -375,3 +453,7 @@ if (resetStatsBtn) {
         statBlocked.innerText = 0;
     };
 }
+
+(async function start() {
+    ensureRegistered();
+})();

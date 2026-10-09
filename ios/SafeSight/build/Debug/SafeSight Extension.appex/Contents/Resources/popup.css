@@ -1,0 +1,608 @@
+/* popup.css — SafeSight Safari extension popup
+ *
+ * Safari popups must be content-driven. Avoiding fixed heights, vh units, 
+ * and overflow:hidden on the root prevents the popup from collapsing.
+ */
+
+:root {
+    color-scheme: dark;
+
+    --primary: #6366f1;
+    --primary-hover: #4f46e5;
+    --bg: #0f172a;
+    --card-bg: #1e293b;
+    --text: #f1f5f9;
+    --text-muted: #94a3b8;
+    --danger: #ef4444;
+    --success: #22c55e;
+    --warning: #f97336;
+    --line: rgba(255, 255, 255, 0.06);
+    --line-strong: #334155;
+    --shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    width: 100%;
+    background: var(--bg);
+}
+
+body {
+    width: 100%;
+    max-width: 320px;
+    margin: 0 auto;
+    padding: 16px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------------------------------------------------------------------
+   Header
+   --------------------------------------------------------------------------- */
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+/* Corner account entry: opens login.html, which doubles as the account
+   management page (register / status / PIN / forget device). */
+.account-area {
+    margin-left: auto;
+    flex-shrink: 0;
+}
+
+.account-btn {
+    padding: 5px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.05);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.account-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.account-btn.is-signed-in {
+    color: var(--success);
+    border-color: rgba(34, 197, 94, 0.35);
+}
+
+.logo-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    padding: 4px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, var(--primary), #a855f7);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.logo-icon img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+    letter-spacing: -0.025em;
+}
+
+/* ---------------------------------------------------------------------------
+   Banners
+   --------------------------------------------------------------------------- */
+
+#pendingBanner {
+    margin: 0 0 16px 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(249, 115, 22, 0.12);
+    border: 1px solid rgba(249, 115, 22, 0.2);
+    color: #fdba74;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.banner-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.banner-icon {
+    font-size: 14px;
+}
+
+/* ---------------------------------------------------------------------------
+   Stats
+   --------------------------------------------------------------------------- */
+
+.stats-container {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.stat-box {
+    flex: 1;
+    padding: 12px;
+    text-align: center;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.03);
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.stat-box:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateY(-1px);
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.2rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--primary);
+}
+
+.stat-label {
+    display: block;
+    margin-top: 2px;
+    font-size: 0.65rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Card
+   --------------------------------------------------------------------------- */
+
+.status-card {
+    padding: 16px;
+    margin-bottom: 16px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    background: var(--card-bg);
+    box-shadow: var(--shadow);
+}
+
+.control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.control-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 0;
+    gap: 12px;
+}
+
+.control-item--stacked {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
+.control-item--stacked .label-info {
+    margin-bottom: 10px;
+}
+
+.label-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.label-title {
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.label-desc {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Toggle switch
+   --------------------------------------------------------------------------- */
+
+.switch {
+    position: relative;
+    display: inline-block;
+    flex-shrink: 0;
+    width: 46px;
+    height: 24px;
+}
+
+.switch input {
+    position: absolute;
+    width: 0;
+    height: 0;
+    opacity: 0;
+}
+
+.slider {
+    position: absolute;
+    inset: 0;
+    cursor: pointer;
+    border-radius: 24px;
+    background-color: var(--line-strong);
+    transition: background-color 0.2s ease;
+}
+
+.slider:before {
+    content: "";
+    position: absolute;
+    left: 3px;
+    bottom: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background-color: #fff;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+input:checked + .slider {
+    background-color: var(--primary);
+}
+
+input:checked + .slider:before {
+    transform: translateX(22px);
+}
+
+.switch input:focus-visible + .slider {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+   Sensitivity slider
+   --------------------------------------------------------------------------- */
+
+.range-container {
+    width: 100%;
+}
+
+.sensitivity-range {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 5px;
+    background: var(--line-strong);
+    outline: none;
+}
+
+.sensitivity-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--primary);
+    cursor: pointer;
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+    border: 2px solid #fff;
+}
+
+.range-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+}
+
+/* ---------------------------------------------------------------------------
+   Blocked sites
+   --------------------------------------------------------------------------- */
+
+.blocklist-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+}
+
+.blocklist-row {
+    display: flex;
+    gap: 8px;
+}
+
+.blocklist-row input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: inherit;
+    font-size: 0.85rem;
+    outline: none;
+    transition: border-color 0.2s ease;
+}
+
+.blocklist-row input:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+.blocklist-add {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    border: none;
+    border-radius: 10px;
+    background: var(--primary);
+    color: #fff;
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.blocklist-add:hover {
+    background: var(--primary-hover);
+}
+
+.blocklist {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 120px;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+.blocklist:empty {
+    display: none;
+}
+
+.blocklist li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    transition: background 0.2s ease;
+}
+
+.blocklist li:hover {
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.blocklist-site {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.82rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.blocklist-tag {
+    flex-shrink: 0;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: rgba(148, 163, 184, 0.15);
+    color: var(--text-muted);
+    font-size: 0.6rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.blocklist-remove {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.blocklist-remove:hover {
+    background: var(--danger);
+    color: #fff;
+}
+
+.blocklist-note {
+    font-size: 0.68rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+/* ---------------------------------------------------------------------------
+   Admin
+   --------------------------------------------------------------------------- */
+
+.admin-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+}
+
+.admin-btn {
+    width: 100%;
+    padding: 10px 12px;
+    border: none;
+    border-radius: 10px;
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger);
+    font-family: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.admin-btn:hover {
+    background: var(--danger);
+    color: #fff;
+}
+
+.admin-btn-secondary {
+    background: rgba(148, 163, 184, 0.1);
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.admin-btn-secondary:hover {
+    background: rgba(148, 163, 184, 0.2);
+    color: var(--text);
+}
+
+/* ---------------------------------------------------------------------------
+   Status summary
+   --------------------------------------------------------------------------- */
+
+.status-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.status-dot {
+    flex-shrink: 0;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--line-strong);
+    box-shadow: 0 0 0 3px rgba(148, 163, 184, 0.15);
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.status-dot.is-on {
+    background: var(--success);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
+}
+
+.status-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.status-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.status-list li {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.status-value {
+    color: var(--text);
+    font-weight: 600;
+    text-align: right;
+}
+
+.status-note {
+    margin: 16px 0 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+    font-size: 0.75rem;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+.status-note strong {
+    color: var(--text);
+}
+
+/* ---------------------------------------------------------------------------
+   Footer
+   --------------------------------------------------------------------------- */
+
+.footer {
+    margin-top: 20px;
+    text-align: center;
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+/* ---------------------------------------------------------------------------
+   Platform split
+   --------------------------------------------------------------------------- */
+
+.only-ios,
+.only-mac {
+    display: none;
+}
+
+.options-only {
+    display: none;
+}
+
+.platform-ios .only-ios {
+    display: inline;
+}
+
+.platform-mac .only-mac {
+    display: inline;
+}
+
+.platform-mac .options-only {
+    display: block;
+}
+
+/* Hide status summary on Mac as they have the controls above it */
+.platform-mac .status-only {
+    display: none;
+}

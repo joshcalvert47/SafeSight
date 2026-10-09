@@ -1,21 +1,7 @@
 // background.js (iOS / Safari)
-// Same logic as the Chrome build's service-worker.js, adapted for iOS:
-//   - No chrome.offscreen and no MV3 service workers on iOS Safari, so the
-//     LiteRT engine is loaded and run directly in this background page (the
-//     same inline inference the Firefox build uses).
-//   - No chrome.contextMenus, so the per-site context menu controls are not
-//     available; storage is the single source of truth for site lists.
-//   - The app owns every option on iOS (its Web Filter page writes the shared
-//     App Group), so this page pulls those values down over
-//     sendNativeMessage -> SafariWebExtensionHandler and mirrors them into
-//     chrome.storage.local, which is what the content script reads. Counters go
-//     the other way so the app's dashboard shows real numbers.
-//   - iOS Safari unloads non-persistent background pages ~30s after extension
-//     activity stops, forcing a full model reload on every wake; a cheap API
-//     ping keeps the engine warm while Safari is running.
 
 // ---------------------------------------------------------------------------
-// Inference engine (replaces Chrome's offscreen document)
+// Inference engine
 // ---------------------------------------------------------------------------
 let readyModel = null;
 let modelLoading = null;
@@ -25,16 +11,28 @@ async function initializeModel() {
     if (modelLoading) return modelLoading;
 
     modelLoading = (async () => {
-        const mod = await import(chrome.runtime.getURL('litert.js'));
-        const litertInstance = await mod.loadLiteRt(chrome.runtime.getURL('./'));
-        readyModel = await litertInstance.loadAndCompile(chrome.runtime.getURL('nsfw.tflite'));
-        return readyModel;
+        try {
+            console.log('[SafeSight] Initializing LiteRT model...');
+            const mod = await import(chrome.runtime.getURL('litert.js'));
+            console.log('[SafeSight] litert.js imported');
+            
+            // Use empty string to represent the root of the extension
+            const litertInstance = await mod.loadLiteRt(chrome.runtime.getURL(''));
+            console.log('[SafeSight] LiteRT instance loaded');
+            
+            readyModel = await litertInstance.loadAndCompile(chrome.runtime.getURL('nsfw.tflite'));
+            console.log('[SafeSight] Model compiled and ready');
+            return readyModel;
+        } catch (e) {
+            console.error('[SafeSight] Model initialization failed:', e);
+            modelLoading = null;
+            throw e;
+        }
     })();
 
     try {
         return await modelLoading;
     } catch (e) {
-        // Allow a retry on the next request instead of caching the failure.
         modelLoading = null;
         throw e;
     }
@@ -43,7 +41,6 @@ async function initializeModel() {
 async function analyzePayload(payload) {
     const model = await initializeModel();
 
-    // payload.data arrives as a plain array (JSON-only extension messaging).
     const inputData = new Uint8Array(payload.data);
     if (inputData.length !== 150528) {
         throw new Error(`Data size mismatch: Expected 150528, got ${inputData.length}`);
@@ -90,13 +87,19 @@ async function analyzePayload(payload) {
     return finalScore;
 }
 
-// Pre-warm: start loading the model the moment the background page wakes, so
-// the first ANALYZE doesn't pay the whole cold start inside its own deadline.
-initializeModel().catch((e) => console.error('SafeSight model pre-warm failed:', e));
+initializeModel().then((model) => {
+    console.log('[SafeSight] Model ready — notifying content scripts');
+    chrome.tabs?.query({}, (tabs) => {
+        for (const tab of tabs || []) {
+            try {
+                chrome.tabs.sendMessage(tab.id, { type: 'MODEL_READY' }).catch(() => {});
+            } catch (e) { }
+        }
+    });
+}).catch((e) => console.error('[SafeSight] Model pre-warm failed:', e));
 
-// Keep-alive ping (see header comment).
 setInterval(() => {
-    try { chrome.runtime.getPlatformInfo(() => { }); } catch (e) { /* unloaded */ }
+    try { chrome.runtime.getPlatformInfo(() => { }); } catch (e) { }
 }, 20000);
 
 // ---------------------------------------------------------------------------
@@ -104,6 +107,8 @@ setInterval(() => {
 // ---------------------------------------------------------------------------
 const NATIVE_APP_ID = 'com.joshc.SafeSight';
 const SHARED_SETTING_KEYS = ['skinFilter', 'blurAll', 'sensitivity', 'blocklistUser', 'accountEmail', 'accountName', 'accountReady', 'accountStatus', 'clientId', 'filtersEnabled', 'quietEnabled', 'quietStart', 'quietEnd'];
+// Keys that together describe "which account is this device signed in as".
+const ACCOUNT_KEYS = ['accountEmail', 'accountName', 'accountReady', 'accountStatus', 'clientId'];
 const SYNC_MAX_AGE_MS = 10000;
 
 let isIOS = null;
@@ -128,7 +133,9 @@ function detectIOS() {
                 const platform = String(info?.os || '').toLowerCase();
                 finish(iosUserAgent || platform === 'ios');
             });
-        } catch (e) { finish(iosUserAgent); }
+        } catch (e) {
+            finish(iosUserAgent);
+        }
         setTimeout(() => finish(iosUserAgent), 300);
     });
 }
@@ -138,26 +145,33 @@ function sendNative(message) {
         try {
             chrome.runtime.sendNativeMessage(NATIVE_APP_ID, message, (response) => {
                 if (chrome.runtime.lastError) {
-                    console.warn('SafeSight native bridge unavailable:', chrome.runtime.lastError.message);
+                    console.warn('[SafeSight] Native bridge unavailable:', chrome.runtime.lastError.message);
                     resolve(null);
                     return;
                 }
                 resolve(response || null);
             });
         } catch (e) {
-            console.warn('SafeSight native bridge failed:', e);
+            console.warn('[SafeSight] Native bridge failed:', e);
             resolve(null);
         }
     });
 }
 
-/// Copies the app's settings into storage, writing only what actually changed.
 async function applySettingsSnapshot(settings) {
     if (!settings) return false;
     const stored = await chrome.storage.local.get(SHARED_SETTING_KEYS);
+    const appHasAccount = !!(settings.accountEmail && settings.accountName);
+    const deviceHasAccount = !!(stored.accountReady || stored.accountEmail || stored.clientId);
     const patch = {};
     SHARED_SETTING_KEYS.forEach((key) => {
         if (!(key in settings)) return;
+        // The native snapshot derives accountReady from the app's own sign-in,
+        // so an app with no signed-in account reports an empty identity. An
+        // empty snapshot must never wipe the account this device registered
+        // through the extension's login page — that clobbering logged users
+        // straight back out and stopped the content script filtering.
+        if (!appHasAccount && deviceHasAccount && ACCOUNT_KEYS.includes(key)) return;
         if (JSON.stringify(stored[key]) !== JSON.stringify(settings[key])) patch[key] = settings[key];
     });
     if (Object.keys(patch).length) await chrome.storage.local.set(patch);
@@ -181,7 +195,6 @@ async function syncFromApp() {
     }
 }
 
-/// Cheap gate so navigations don't each pay for a native round-trip.
 async function refreshSettingsIfStale(maxAgeMs = SYNC_MAX_AGE_MS) {
     if (Date.now() - lastSyncAt < maxAgeMs) return true;
     return syncFromApp();
@@ -198,8 +211,6 @@ async function pushStatsToApp(scannedCount, blockedCount) {
     return false;
 }
 
-/// Used by the popup when it edits settings. Returns false when there is no
-/// app to write to, so the caller can fall back to local storage.
 async function pushSettingsToApp(values) {
     if (!(await detectIOS())) return false;
     const res = await sendNative({ type: 'setSettings', values });
@@ -208,9 +219,6 @@ async function pushSettingsToApp(values) {
     return true;
 }
 
-// ---------------------------------------------------------------------------
-// Stats aggregation (same scheme as the Chrome build)
-// ---------------------------------------------------------------------------
 const stats = { scanned: 0, blocked: 0, dirty: false, flushTimer: null };
 
 function bumpStats(blocked) {
@@ -218,7 +226,6 @@ function bumpStats(blocked) {
     if (blocked) stats.blocked++;
     if (!stats.dirty) {
         stats.dirty = true;
-        // Coalesce bursts into a single storage write.
         stats.flushTimer = setTimeout(flushStats, 3000);
     }
 }
@@ -238,13 +245,9 @@ async function flushStats() {
     stats.blocked = 0;
     stats.dirty = false;
 
-    // Mirror the totals into the app group so the app's dashboard is real.
     pushStatsToApp(next.scannedCount, next.blockedCount).catch(() => { });
 }
 
-// ---------------------------------------------------------------------------
-// CORS-free image proxy (same as the Chrome build)
-// ---------------------------------------------------------------------------
 async function handleFetchImage(url, sendResponse) {
     try {
         const resp = await fetch(url, { credentials: 'omit' });
@@ -257,9 +260,6 @@ async function handleFetchImage(url, sendResponse) {
     }
 }
 
-// ---------------------------------------------------------------------------
-// Site blocklist — hard navigation block (same as the Chrome build)
-// ---------------------------------------------------------------------------
 const BLOCKLIST_KEYS = ['blocklistDefaults', 'blocklistUser', 'blocklistRemoved'];
 let blocklistSetCache = null;
 
@@ -317,7 +317,7 @@ async function isUrlBlocked(url) {
         for (const site of list) {
             if (host === site || host.endsWith('.' + site)) return true;
         }
-    } catch (e) { /* invalid URL */ }
+    } catch (e) { }
     return false;
 }
 
@@ -328,10 +328,6 @@ function blockedPageUrl(url, site, reason) {
         (reason ? '&reason=' + encodeURIComponent(reason) : '');
 }
 
-// ---------------------------------------------------------------------------
-// Quiet hours — mirrors SharedSettings.isDuringQuietHours (HH:mm strings,
-// local clock, window may wrap midnight).
-// ---------------------------------------------------------------------------
 function parseHM(value) {
     const m = /^(\d{1,2}):(\d{2})$/.exec(String(value || ''));
     if (!m) return null;
@@ -351,9 +347,6 @@ function isQuietNow(settings) {
     return s < e ? (current >= s && current < e) : (current >= s || current < e);
 }
 
-// Decides what happens to a navigation: null = allow, 'quiet' = quiet-hours
-// block, 'site' = block-list hit. Filters paused (filtersEnabled false) means
-// everything is allowed.
 async function navigationDecision(url) {
     const res = await chrome.storage.local.get(['filtersEnabled', 'quietEnabled', 'quietStart', 'quietEnd']);
     if (res.filtersEnabled === false) return null;
@@ -365,27 +358,22 @@ chrome.storage.onChanged.addListener((changes) => {
     if (BLOCKLIST_KEYS.some((key) => changes[key])) blocklistSetCache = null;
 });
 
-// Enforce at navigation start — also covers hosts where the content script
-// does not run (e.g. the excluded-host wrapper). Guarded: Safari's tabs API
-// surface is smaller.
 try {
     chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         if (!changeInfo || changeInfo.status !== 'loading') return;
         const url = changeInfo.url || (tab && tab.url);
-        if (!url || !/^https?:/.test(url)) return;
-        // Pick up any change the user made in the app before we decide.
+        if (!url || !/^https?:$/.test(url)) return;
         refreshSettingsIfStale().then(() => navigationDecision(url)).then((decision) => {
             if (!decision) return;
             let site = '';
             try { site = new URL(url).hostname.replace(/^www\./, ''); } catch (e) { }
             try {
                 chrome.tabs.update(tabId, { url: blockedPageUrl(url, site, decision === 'quiet' ? 'quiet' : '') }, () => void chrome.runtime.lastError);
-            } catch (e) { /* tabs API unavailable */ }
+            } catch (e) { }
         }).catch(() => { });
     });
-} catch (e) { /* tabs.onUpdated unavailable */ }
+} catch (e) { }
 
-// Clear per-tab disables when tabs close (no-op here, kept for parity).
 try {
     chrome.tabs.onRemoved.addListener(async (tabId) => {
         const res = await chrome.storage.session.get(['disabledTabs']);
@@ -395,19 +383,13 @@ try {
             await chrome.storage.session.set({ disabledTabs: disabled });
         }
     });
-} catch (e) { /* tabs API unavailable */ }
+} catch (e) { }
 
-// Refresh cached defaults from blocklist.json (compare-guarded write).
 seedBlocklistDefaults().catch(() => { });
-
-// Pull the app's settings down as soon as the background page wakes.
 syncFromApp().catch(() => { });
 
-// Message router
-// ---------------------------------------------------------------------------
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'ANALYZE') {
-        // Only accept requests from real tabs with a known id.
         if (!sender.tab || typeof sender.tab.id !== 'number' || typeof message.id !== 'number') {
             return;
         }
@@ -420,27 +402,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     score
                 });
             } catch (error) {
-                console.error('SafeSight analysis failed:', error);
+                console.error('[SafeSight] Analysis failed:', error);
                 try {
                     await chrome.tabs.sendMessage(sender.tab.id, {
                         type: 'AI_RESULT',
                         id: message.id,
                         score: 0
                     });
-                } catch (e) { /* tab closed */ }
+                } catch (e) { }
             }
         })();
-        return true; // Keep channel open
+        return true;
     }
 
     if (message.type === 'BLOCK_SITE_NAV') {
-        // The content script found this tab's host on the block list. Navigate
-        // it ourselves: extension-initiated navigation is allowed in every
-        // browser (page-initiated jumps to extension pages are not).
         if (sender.tab && typeof sender.tab.id === 'number') {
             try {
                 chrome.tabs.update(sender.tab.id, { url: blockedPageUrl(message.url, message.site, message.reason) }, () => void chrome.runtime.lastError);
-            } catch (e) { /* tabs API unavailable */ }
+            } catch (e) { }
         }
         sendResponse({ ok: true });
         return;
@@ -448,7 +427,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message.type === 'FETCH_IMAGE') {
         handleFetchImage(message.url, sendResponse);
-        return true; // async sendResponse
+        return true;
     }
 
     if (message.type === 'BUMP_STATS') {
@@ -469,7 +448,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (message.type === 'SYNC_FROM_APP') {
-        // The popup and content script use the same fresh snapshot.
         syncFromApp().then((settings) => sendResponse({
             ok: !!settings,
             settings: settings || undefined
@@ -484,7 +462,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 sendResponse({ ok: true, native: true });
                 return;
             }
-            // No app to talk to: storage stays the source of truth.
             await chrome.storage.local.set(message.values || {});
             lastSyncAt = Date.now();
             sendResponse({ ok: true, native: false });
