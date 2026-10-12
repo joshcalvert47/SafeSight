@@ -1,11 +1,46 @@
 // content.js
-let config = { skinFilter: false, blurAll: false, sensitivity: 4, blockedSites: [], allowedSites: [], accountReady: false };
+// aiFilter is the master switch for the ML image lane. Before it existed, the
+// lane could only be turned *down* (skin overlay off, blur-all off) — it always
+// kept scanning images and blurring whatever it flagged, with no way to stop it.
+//
+// `sensitivity` is stored as a STRICTNESS LEVEL: 1 is the most permissive, 9
+// the most aggressive. The model scores an image 0-10, so the level maps to the
+// score at which an image is blurred. It used to be stored as that score
+// cutoff itself, which meant dragging the slider toward "Strict" made the
+// filter block *less* — the ends were wired backwards. The service worker
+// migrates old stored values onto this scale.
+let config = { aiFilter: true, skinFilter: false, blurAll: false, sensitivity: 6, blockedSites: [], allowedSites: [] };
 const SKIN_COVERAGE_THRESHOLD = 0.12;
 const SCAN_TIMEOUT_MS = 5000; // Reveal if no verdict within 5s of the blur starting.
 const requestMap = new Map();
 const pendingBySrc = new Map(); // src -> imgs waiting on the same in-flight request
 let uniqueId = 0;
 let siteFilteringEnabled = true; // Per-site master toggle from the context menu / popup.
+// Nothing may be scanned until the stored settings have actually been read.
+// `config.aiFilter` starts true (filtering is the default), so scanning before
+// loadConfig() resolves would ignore a stored `aiFilter: false` and blur a page
+// the user had switched the lane off for. The removed account gate used to
+// delay the first scan by accident, which hid exactly this race. Enforced in
+// processImage(), which every scan path goes through.
+let configReady = false;
+
+// Level 6 maps to cutoff 4, which is the level SafeSight has always shipped as
+// its default, so the migration keeps most existing users at the same strictness.
+const DEFAULT_STRICTNESS = 6;
+
+// Bumped whenever the meaning of a stored setting changes. Reloading the
+// extension does NOT re-inject content scripts into tabs that are already open,
+// so those tabs keep filtering by the old rules while the popup shows the new
+// ones. The popup probes for this number and can then say so instead of
+// silently disagreeing with the page in front of the user.
+const FILTER_CONTRACT = 2;
+
+// Strictness level -> the model score at which an image is blurred. 6 -> 4.
+function blockCutoff() {
+    const level = Number(config.sensitivity);
+    const safe = Number.isFinite(level) ? Math.min(9, Math.max(1, level)) : DEFAULT_STRICTNESS;
+    return 10 - safe;
+}
 
 function currentSiteHost() {
     try { return location.hostname.replace(/^www\./, ''); } catch (e) { return ''; }
@@ -74,8 +109,10 @@ function blockedPageUrl(url, site) {
 
 async function enforceSiteBlock() {
     try {
-        const account = await new Promise((resolve) => chrome.storage.local.get(['accountReady'], resolve));
-        if (!account || !account.accountReady) return;
+        // No account gate: the block list is a local safety feature and must not
+        // stop working because the server is unreachable or the user signed out.
+        // (The DNR lane in the service worker enforces the same domains earlier
+        // and without a content script at all; this stays as the fallback.)
         if (!/^https?:$/.test(location.protocol)) return;
         const host = location.hostname.replace(/^www\./, '');
         if (!host) return;
@@ -141,29 +178,56 @@ function updateGlobalBlur() {
 
 // 2. STORAGE SYNC
 function loadConfig() {
-    chrome.storage.local.get(['skinFilter', 'blurAll', 'sensitivity', 'blockedSites', 'allowedSites', 'accountReady'], (res) => {
-        config.accountReady = !!res.accountReady;
+    chrome.storage.local.get(['aiFilter', 'skinFilter', 'blurAll', 'sensitivity', 'blockedSites', 'allowedSites'], (res) => {
+        // Absent means on: filtering is the product's whole point, so a fresh
+        // install or a pre-existing profile must not silently start unfiltered.
+        config.aiFilter = res.aiFilter !== false;
         config.skinFilter = !!res.skinFilter;
         config.blurAll = !!res.blurAll;
-        config.sensitivity = res.sensitivity ?? 4;
+        config.sensitivity = res.sensitivity ?? DEFAULT_STRICTNESS;
         config.blockedSites = Array.isArray(res.blockedSites) ? res.blockedSites : [];
         config.allowedSites = Array.isArray(res.allowedSites) ? res.allowedSites : [];
         siteFilteringEnabled = !isSiteBlocked() || isSiteAllowed();
+        configReady = true;
         updateGlobalBlur();
+        // The page is usually already parsed by now: this sweep is what catches
+        // images that arrived while the stored settings were still loading.
+        start();
     });
 }
 
+// Turning the lane off must also release anything it already applied: the blur
+// and flag classes are the only reason an image is hidden, so leaving them
+// behind would look like the switch did nothing.
+function clearImageFiltering() {
+    document.querySelectorAll('.ai-filter-target, .ai-flagged, .ai-safe').forEach((el) => {
+        if (el.__aiTimer) { clearTimeout(el.__aiTimer); el.__aiTimer = null; }
+        el.classList.remove('ai-filter-target', 'ai-flagged', 'ai-safe');
+        delete el.dataset.aiChecked;
+        delete el.dataset.aiWaiting;
+    });
+    document.querySelectorAll('.ai-skin-overlay').forEach((o) => o.remove());
+    requestMap.clear();
+    pendingBySrc.clear();
+    scanQueue.length = 0;
+}
+
 chrome.storage.onChanged.addListener((changes) => {
+    if (changes.aiFilter) {
+        config.aiFilter = changes.aiFilter.newValue !== false;
+        if (!config.aiFilter) clearImageFiltering();
+        updateGlobalBlur();
+        if (config.aiFilter) start();
+    }
     if (changes.blurAll) config.blurAll = changes.blurAll.newValue;
     if (changes.skinFilter) config.skinFilter = changes.skinFilter.newValue;
     if (changes.sensitivity) config.sensitivity = changes.sensitivity.newValue;
-    if (changes.accountReady) config.accountReady = !!changes.accountReady.newValue;
     if (changes.blockedSites) config.blockedSites = Array.isArray(changes.blockedSites.newValue) ? changes.blockedSites.newValue : [];
     if (changes.allowedSites) config.allowedSites = Array.isArray(changes.allowedSites.newValue) ? changes.allowedSites.newValue : [];
     if (changes.blocklistUser || changes.blocklistRemoved || changes.blocklistDefaults) enforceSiteBlock();
-    siteFilteringEnabled = config.accountReady && (!isSiteBlocked() || isSiteAllowed());
+    siteFilteringEnabled = !isSiteBlocked() || isSiteAllowed();
     updateGlobalBlur();
-    if (config.accountReady) start();
+    start();
 });
 
 // 3. RESULT HANDLING
@@ -175,7 +239,7 @@ function finishRequest(request, finalScore) {
 
     chrome.runtime.sendMessage({
         type: 'BUMP_STATS',
-        blocked: Number(finalScore) >= config.sensitivity
+        blocked: Number(finalScore) >= blockCutoff()
     });
 
     if (img) {
@@ -196,6 +260,14 @@ function finishRequest(request, finalScore) {
 }
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    // Answered by any build that knows this message exists. A build that does
+    // not recognise it stays silent, which is how the popup spots a page still
+    // running an older content script.
+    if (message.type === 'FILTER_CONTRACT') {
+        sendResponse({ contract: FILTER_CONTRACT, version: chrome.runtime.getManifest().version });
+        return;
+    }
+
     if (message.type === 'AI_RESULT') {
         const { id, score } = message;
         const request = requestMap.get(id);
@@ -203,7 +275,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         requestMap.delete(id);
 
         const firstScore = Number(score);
-        const sensitivity = config.sensitivity ?? 4;
+        const cutoff = blockCutoff();
 
         // Second pass finished: average the two views. A localized violation
         // the full-frame squash diluted pulls the average up; squash artifacts
@@ -215,7 +287,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         // Borderline first verdict: re-measure on a center crop before
         // deciding. Clear-cut verdicts skip the extra inference.
-        if (request.cropRgbData && Math.abs(firstScore - sensitivity) <= 2) {
+        if (request.cropRgbData && Math.abs(firstScore - cutoff) <= 2) {
             const retryId = uniqueId++;
             requestMap.set(retryId, {
                 ...request,
@@ -262,7 +334,7 @@ function applyVerdict(img, score, skinOverlay) {
     img.dataset.aiChecked = "true";
     if (config.skinFilter) showSkinOverlay(img, skinOverlay);
 
-    if (Number(score) >= config.sensitivity) {
+    if (Number(score) >= blockCutoff()) {
         img.classList.add('ai-flagged');
         img.classList.remove('ai-safe');
     } else {
@@ -428,7 +500,12 @@ const intersectionObserver = new IntersectionObserver((entries) => {
 }, { rootMargin: '400px' });
 
 async function processImage(img) {
-    if (!img || !config.accountReady || !siteFilteringEnabled) return;
+    // The single choke point: start(), the MutationObserver and the RESCAN /
+    // SITE_TOGGLE messages all arrive here. The `configReady` check has to be on
+    // THIS guard, not only on start() — with `config.aiFilter` defaulting to
+    // true, the observer would otherwise blur images on a page whose stored
+    // setting (read asynchronously) says the lane is off.
+    if (!configReady || !img || !config.aiFilter || !siteFilteringEnabled) return;
 
     const src = getSource(img);
     // Only elements with an extractable URL are scannable. Never blur things
@@ -623,7 +700,7 @@ async function runAnalysis(img) {
 }
 
 function start() {
-    if (!config.accountReady) return;
+    if (!configReady || !config.aiFilter) return;
     document.querySelectorAll('img, [style*="background-image"], [style*="url("]').forEach(processImage);
 }
 
@@ -632,7 +709,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 else start();
 
 const observer = new MutationObserver(m => {
-    if (!config.accountReady || config.blurAll) return;
+    if (!config.aiFilter || config.blurAll) return;
     for (const record of m) {
         if (record.type === 'childList') {
             record.addedNodes.forEach(node => {

@@ -1,11 +1,32 @@
 // content.js
-let config = { skinFilter: false, blurAll: false, sensitivity: 4, blockedSites: [], allowedSites: [], accountReady: false };
+//
+// `sensitivity` is stored as a STRICTNESS LEVEL: 1 is the most permissive, 9 the
+// most aggressive. The model scores an image 0-10, so the level maps to the
+// score at which an image is blurred. This port used to store that cutoff
+// itself, which wired the popup's slider backwards — dragging toward "Strict"
+// made the filter block less. Kept in step with the Chrome build.
+let config = { skinFilter: false, blurAll: false, sensitivity: 6, blockedSites: [], allowedSites: [] };
 const SKIN_COVERAGE_THRESHOLD = 0.12;
 const SCAN_TIMEOUT_MS = 5000; // Reveal if no verdict within 5s of the blur starting.
 const requestMap = new Map();
 const pendingBySrc = new Map(); // src -> imgs waiting on the same in-flight request
 let uniqueId = 0;
 let siteFilteringEnabled = true; // Per-site master toggle from the context menu / popup.
+// Nothing may be scanned until the stored settings have actually been read —
+// scanning first would ignore the stored values. The removed account gate used
+// to delay the first scan by accident, which hid exactly this race.
+let configReady = false;
+
+// Level 6 maps to cutoff 4, the level SafeSight has always shipped as its
+// default, so the migration keeps existing users at the same strictness.
+const DEFAULT_STRICTNESS = 6;
+
+// Strictness level -> the model score at which an image is blurred. 6 -> 4.
+function blockCutoff() {
+    const level = Number(config.sensitivity);
+    const safe = Number.isFinite(level) ? Math.min(9, Math.max(1, level)) : DEFAULT_STRICTNESS;
+    return 10 - safe;
+}
 
 function currentSiteHost() {
     try { return location.hostname.replace(/^www\./, ''); } catch (e) { return ''; }
@@ -74,8 +95,6 @@ function blockedPageUrl(url, site) {
 
 async function enforceSiteBlock() {
     try {
-        const account = await new Promise((resolve) => chrome.storage.local.get(['accountReady'], resolve));
-        if (!account || !account.accountReady) return;
         if (!/^https?:$/.test(location.protocol)) return;
         const host = location.hostname.replace(/^www\./, '');
         if (!host) return;
@@ -141,15 +160,18 @@ function updateGlobalBlur() {
 
 // 2. STORAGE SYNC
 function loadConfig() {
-    chrome.storage.local.get(['skinFilter', 'blurAll', 'sensitivity', 'blockedSites', 'allowedSites', 'accountReady'], (res) => {
-        config.accountReady = !!res.accountReady;
+    chrome.storage.local.get(['skinFilter', 'blurAll', 'sensitivity', 'blockedSites', 'allowedSites'], (res) => {
         config.skinFilter = !!res.skinFilter;
         config.blurAll = !!res.blurAll;
-        config.sensitivity = res.sensitivity ?? 4;
+        config.sensitivity = res.sensitivity ?? DEFAULT_STRICTNESS;
         config.blockedSites = Array.isArray(res.blockedSites) ? res.blockedSites : [];
         config.allowedSites = Array.isArray(res.allowedSites) ? res.allowedSites : [];
         siteFilteringEnabled = !isSiteBlocked() || isSiteAllowed();
+        configReady = true;
         updateGlobalBlur();
+        // The page is usually already parsed by now: this sweep is what catches
+        // images that arrived while the stored settings were still loading.
+        start();
     });
 }
 
@@ -157,13 +179,12 @@ chrome.storage.onChanged.addListener((changes) => {
     if (changes.blurAll) config.blurAll = changes.blurAll.newValue;
     if (changes.skinFilter) config.skinFilter = changes.skinFilter.newValue;
     if (changes.sensitivity) config.sensitivity = changes.sensitivity.newValue;
-    if (changes.accountReady) config.accountReady = !!changes.accountReady.newValue;
     if (changes.blockedSites) config.blockedSites = Array.isArray(changes.blockedSites.newValue) ? changes.blockedSites.newValue : [];
     if (changes.allowedSites) config.allowedSites = Array.isArray(changes.allowedSites.newValue) ? changes.allowedSites.newValue : [];
     if (changes.blocklistUser || changes.blocklistRemoved || changes.blocklistDefaults) enforceSiteBlock();
-    siteFilteringEnabled = config.accountReady && (!isSiteBlocked() || isSiteAllowed());
+    siteFilteringEnabled = !isSiteBlocked() || isSiteAllowed();
     updateGlobalBlur();
-    if (config.accountReady) start();
+    start();
 });
 
 // 3. RESULT HANDLING
@@ -178,7 +199,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         // Update Stats (throttled; the service worker owns the persisted values)
         chrome.runtime.sendMessage({
             type: 'BUMP_STATS',
-            blocked: Number(score) >= config.sensitivity
+            blocked: Number(score) >= blockCutoff()
         });
 
         if (img) {
@@ -226,7 +247,7 @@ function applyVerdict(img, score, skinOverlay) {
     img.dataset.aiChecked = "true";
     if (config.skinFilter) showSkinOverlay(img, skinOverlay);
 
-    if (Number(score) >= config.sensitivity) {
+    if (Number(score) >= blockCutoff()) {
         img.classList.add('ai-flagged');
         img.classList.remove('ai-safe');
     } else {
@@ -356,7 +377,10 @@ const intersectionObserver = new IntersectionObserver((entries) => {
 }, { rootMargin: '400px' });
 
 async function processImage(img) {
-    if (!img || !config.accountReady || !siteFilteringEnabled) return;
+    // The single choke point: start(), the MutationObserver and the RESCAN /
+    // SITE_TOGGLE messages all arrive here, so the "settings are loaded" check
+    // belongs on THIS guard — not only on start().
+    if (!configReady || !img || !siteFilteringEnabled) return;
 
     const src = getSource(img);
     // Only elements with an extractable URL are scannable. Never blur things
@@ -551,7 +575,7 @@ async function runAnalysis(img) {
 }
 
 function start() {
-    if (!config.accountReady) return;
+    if (!configReady) return;
     document.querySelectorAll('img, [style*="background-image"], [style*="url("]').forEach(processImage);
 }
 
@@ -560,7 +584,7 @@ if (document.readyState === 'loading') document.addEventListener('DOMContentLoad
 else start();
 
 const observer = new MutationObserver(m => {
-    if (!config.accountReady || config.blurAll) return;
+    if (config.blurAll) return;
     for (const record of m) {
         if (record.type === 'childList') {
             record.addedNodes.forEach(node => {

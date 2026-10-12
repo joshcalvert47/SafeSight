@@ -1,2 +1,0 @@
-Target dependency graph (1 target)
-Target 'SafeSight Extension (macOS)' in project 'SafeSight' (no dependencies)

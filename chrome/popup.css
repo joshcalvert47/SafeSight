@@ -1,54 +1,129 @@
-/* popup.css */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap');
+/* popup.css — the SafeSight toolbar panel.
+ *
+ * Design notes, because this file is the one that decides what SafeSight looks
+ * like:
+ *
+ *  - Neutral graphite surfaces. The only colour in the panel is *meaning*:
+ *    green = filtering armed, amber = needs an action, red = destructive.
+ *    Anything else is a hairline, a surface or text.
+ *  - No gradients, no glow, no drop shadows on the page's own chrome. The
+ *    previous version put the logo on an indigo→violet tile with a coloured
+ *    halo, gradient avatars and glowing status dots; that whole vocabulary read
+ *    as decoration rather than as a control panel.
+ *  - Type: the system UI stack for anything a person reads, and a monospace
+ *    stack for machine values (hostnames, counters, score cutoffs). The popup
+ *    used to pull a webfont from Google's CDN on every open, which is both a
+ *    remote request per open and a fallback font when offline.
+ *  - Chrome is quiet; the report line under the header is the one element that
+ *    says out loud what the filter is doing.
+ *
+ * Sizing: the document must be allowed to exceed the popup window and scroll
+ * itself. A viewport-relative cap on a scrolling body measures against the
+ * window's tiny *initial* height and collapses the whole popup — see the sizing
+ * block further down, which deliberately contains no `vh` units.
+ */
 
 :root {
-    --primary: #6366f1;
-    --primary-hover: #4f46e5;
-    --bg: #0f172a;
-    --card-bg: #1e293b;
-    --text: #f1f5f9;
-    --text-muted: #94a3b8;
-    --danger: #ef4444;
-    --success: #22c55e;
+    /* Navy, taken from the mark itself rather than picked to look dark: the
+       icon's own background samples at #0b162f (hue 222), and every surface
+       below is that same colour scaled up, so the panel and the logo are one
+       family. Keeping the hue and varying only lightness is what stops a tinted
+       dark theme from turning muddy. */
+    --bg: #0b162e;
+    --surface: #101f3b;
+    --raised: #16294a;
+    --line: #1e3459;
+    --line-strong: #2b4675;
+
+    --text: #e8ecf3;
+    --text-muted: #93a2bd;
+
+    --state-on: #3f8f6f;
+    --warn: #c08a45;
+    --danger: #d2604d;
+
+    /* Utility blue, within a few degrees of the mark's own hue. The value this
+       replaced was an indigo-violet, which along with the gradient tiles is
+       most of what made the panel read as generated. */
+    --primary: #4c6ad4;
+    --primary-hover: #5b78e0;
+
+    --radius: 8px;
+    --radius-sm: 6px;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+
+    /* Native controls (slider, scrollbars, caret, selection) follow the panel
+       instead of rendering in the light defaults. */
+    color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    height: auto;
+    max-height: none;
+    overflow: visible;
 }
 
 body {
     width: 320px;
+    margin: 0;
+    padding: 10px 12px 12px;
     background: var(--bg);
     color: var(--text);
-    font-family: 'Outfit', sans-serif;
-    margin: 0;
-    padding: 16px;
-    overflow: hidden;
+    font-family: var(--ui);
+    font-size: 13px;
+    line-height: 1.35;
+    -webkit-font-smoothing: antialiased;
 }
+
+/* Nothing animates until the first real state has been applied: the stored
+   values arrive after the defaults are painted, so without this gate the popup
+   visibly slides every switch into place as it opens. */
+html:not(.ready) *,
+html:not(.ready) *::before,
+html:not(.ready) *::after {
+    transition: none !important;
+    animation: none !important;
+}
+
+:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------- header -- */
 
 .header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 24px;
+    gap: 8px;
+    margin-bottom: 10px;
 }
 
 .brand {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
+    min-width: 0;
 }
 
-/* The app icon is the popup's logo, on the same gradient tile the app's home
-   screen puts it on (the artwork itself is a transparent-background mark). */
+/* The mark sits on the panel surface. It used to be laid on a gradient tile
+   with a coloured shadow, which is the purple block behind the logo. */
 .logo-icon {
     display: flex;
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    width: 32px;
-    height: 32px;
-    padding: 3px;
-    background: linear-gradient(135deg, var(--primary), #a855f7);
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    width: 24px;
+    height: 24px;
 }
 
 .logo-icon img {
@@ -60,431 +135,323 @@ body {
 
 h2 {
     margin: 0;
-    font-size: 1.25rem;
+    font-size: 15px;
     font-weight: 600;
-    letter-spacing: -0.025em;
+    letter-spacing: -0.01em;
 }
 
-/* User Profile Section */
-.account-area {
-    position: relative;
-    flex-shrink: 0;
-}
+/* ----------------------------------------------------------------- notice -- */
 
-.user-profile {
+/* Shown only when the page in front of the user is filtering by an older
+   build's rules — reloading the extension does not re-inject content scripts
+   into tabs that are already open. Amber, because it is a state that needs an
+   action, not an error. */
+.notice {
     display: flex;
     align-items: center;
-    gap: 7px;
-    padding: 4px 8px 4px 10px;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    cursor: pointer;
-    font-family: inherit;
-    color: inherit;
-    max-width: 160px;
-    transition: background 0.15s, border-color 0.15s;
-}
-
-.user-profile:hover,
-.user-profile[aria-expanded="true"] {
-    background: rgba(255, 255, 255, 0.09);
-    border-color: rgba(255, 255, 255, 0.16);
-}
-
-.user-name {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--text-muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.user-avatar {
-    width: 20px;
-    height: 20px;
-    flex-shrink: 0;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary), #a855f7);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.6rem;
-    font-weight: 600;
-    text-transform: uppercase;
-}
-
-.status-dot {
-    width: 7px;
-    height: 7px;
-    flex-shrink: 0;
-    border-radius: 50%;
-    background: var(--success);
-    box-shadow: 0 0 6px rgba(34, 197, 94, 0.6);
-}
-
-.status-dot.pending {
-    background: #f59e0b;
-    box-shadow: 0 0 6px rgba(245, 158, 11, 0.6);
-}
-
-.status-dot.locked {
-    background: var(--danger);
-    box-shadow: 0 0 6px rgba(239, 68, 68, 0.6);
-}
-
-.sign-in-btn {
-    padding: 5px 12px;
-    border-radius: 20px;
-    border: none;
-    background: var(--primary);
-    color: white;
-    font-family: inherit;
-    font-size: 0.75rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.sign-in-btn:hover {
-    background: var(--primary-hover);
-}
-
-.profile-menu {
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
-    width: 232px;
-    background: var(--card-bg);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 12px;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.55);
-    z-index: 60;
-    padding: 10px;
-    text-align: left;
-    animation: menuIn 0.15s ease-out;
-}
-
-@keyframes menuIn {
-    from { opacity: 0; transform: translateY(-4px); }
-    to { opacity: 1; transform: translateY(0); }
-}
-
-.profile-menu-head {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+    gap: 8px;
+    padding: 7px 8px 7px 10px;
     margin-bottom: 8px;
+    background: rgba(192, 138, 69, 0.14);
+    border: 1px solid rgba(192, 138, 69, 0.38);
+    border-left: 2px solid var(--warn);
+    border-radius: var(--radius-sm);
 }
 
-.menu-avatar {
-    width: 34px;
-    height: 34px;
-    flex-shrink: 0;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary), #a855f7);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.85rem;
-    font-weight: 600;
-    text-transform: uppercase;
+.notice[hidden] {
+    display: none;
 }
 
-.profile-menu-id {
+.notice-text {
+    flex: 1 1 auto;
     min-width: 0;
+    font-size: 11px;
+    color: var(--text);
 }
 
-.menu-name {
-    font-size: 0.85rem;
-    font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.menu-email {
-    font-size: 0.7rem;
-    color: var(--text-muted);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.profile-menu-status {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    padding: 6px 8px;
-    margin-bottom: 8px;
-    background: rgba(255, 255, 255, 0.04);
-    border-radius: 8px;
-    font-size: 0.72rem;
-    color: var(--text-muted);
-}
-
-.profile-menu-actions {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-}
-
-.menu-action {
-    width: 100%;
-    text-align: left;
-    padding: 7px 8px;
-    border: none;
-    border-radius: 8px;
+.notice-action {
+    flex: 0 0 auto;
+    padding: 4px 9px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
     background: transparent;
     color: var(--text);
     font-family: inherit;
-    font-size: 0.78rem;
+    font-size: 11px;
     font-weight: 500;
     cursor: pointer;
     transition: background 0.15s;
 }
 
-.menu-action:hover {
-    background: rgba(255, 255, 255, 0.07);
+.notice-action:hover {
+    background: rgba(255, 255, 255, 0.06);
 }
 
-.menu-action:disabled {
-    opacity: 0.5;
-    cursor: default;
+/* --------------------------------------------------------------- readout -- */
+
+/* One plain-language report of what the filter has done, instead of three
+   identical boxes with a coloured number on top of an uppercase caption. */
+.readout {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    white-space: nowrap;
+    padding: 7px 10px;
+    margin-bottom: 10px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text-muted);
 }
 
-.menu-action-danger {
-    color: var(--danger);
+.readout-item {
+    white-space: nowrap;
 }
 
-.menu-action-danger:hover {
-    background: rgba(239, 68, 68, 0.12);
+.readout-item > span {
+    color: var(--text);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
 }
+
+.readout-sep {
+    color: var(--line-strong);
+}
+
+/* ----------------------------------------------------------------- cards -- */
 
 .status-card {
-    background: var(--card-bg);
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 16px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+    gap: 6px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+}
+
+/* Each group is named, rather than being implied by a card boundary. */
+.section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--line);
+}
+
+.section-title {
+    flex: 0 0 auto;
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--text-muted);
+}
+
+/* The hint yields to the title: it ellipsizes rather than wrapping the label. */
+.section-hint {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 11px;
+    text-align: right;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--text-muted);
 }
 
 .control-group {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    flex: 0 0 auto;
+    gap: 4px;
 }
 
 .control-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 0;
+    gap: 10px;
+    padding: 5px 0;
 }
 
 .label-info {
     display: flex;
     flex-direction: column;
+    gap: 1px;
+    min-width: 0;
 }
 
 .label-title {
+    font-size: 12.5px;
     font-weight: 500;
-    font-size: 0.95rem;
 }
 
 .label-desc {
-    font-size: 0.75rem;
+    font-size: 11px;
     color: var(--text-muted);
 }
 
-/* Modern Toggle Switch */
+/* The ML sub-controls are inert while the master switch is off, so they are
+   dimmed rather than left looking active. */
+.status-card.lane-off .control-item:not(:first-child) {
+    opacity: 0.4;
+}
+
+/* --------------------------------------------------------------- controls -- */
+
+/* Capsule track, platform-standard: it is the shape people already read as
+   on/off without a label. Green is the state colour, nowhere else in the UI. */
 .switch {
     position: relative;
     display: inline-block;
-    width: 44px;
-    height: 24px;
+    flex-shrink: 0;
+    width: 36px;
+    height: 20px;
 }
 
 .switch input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
     opacity: 0;
-    width: 0;
-    height: 0;
+    cursor: pointer;
 }
 
 .slider {
     position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #334155;
-    transition: .4s;
-    border-radius: 24px;
+    inset: 0;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    background: var(--raised);
+    transition: background 0.18s, border-color 0.18s;
 }
 
-.slider:before {
-    position: absolute;
+.slider::before {
     content: "";
-    height: 18px;
-    width: 18px;
-    left: 3px;
-    bottom: 3px;
-    background-color: white;
-    transition: .4s;
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
+    background: #c2cbe0;
+    transition: transform 0.18s, background 0.18s;
 }
 
-input:checked+.slider {
-    background-color: var(--primary);
+.switch input:checked + .slider {
+    background: var(--state-on);
+    border-color: var(--state-on);
 }
 
-input:checked+.slider:before {
-    transform: translateX(20px);
+.switch input:checked + .slider::before {
+    transform: translateX(16px);
+    background: #fff;
 }
 
-/* Sensitivity Range Styling */
+.switch input:disabled + .slider {
+    opacity: 0.45;
+}
+
+.switch input:focus-visible + .slider {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
 .range-container {
     width: 100%;
-    margin-top: 8px;
 }
 
 .sensitivity-range {
     -webkit-appearance: none;
     appearance: none;
     width: 100%;
-    height: 6px;
-    background: #334155;
-    border-radius: 5px;
+    height: 14px;
+    background: transparent;
     outline: none;
-    transition: background 0.2s;
+}
+
+.sensitivity-range::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--raised);
+    border: 1px solid var(--line);
 }
 
 .sensitivity-range::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 18px;
-    height: 18px;
-    background: var(--primary);
+    width: 14px;
+    height: 14px;
+    margin-top: -6px; /* centre the thumb on the 4px track */
+    border: none;
     border-radius: 50%;
+    background: var(--text);
     cursor: pointer;
-    box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+}
+
+.sensitivity-range:disabled {
+    opacity: 0.45;
 }
 
 .range-labels {
     display: flex;
     justify-content: space-between;
-    font-size: 0.65rem;
-    color: var(--text-muted);
     margin-top: 4px;
-}
-
-/* Stats Styling */
-.stats-container {
-    display: flex;
-    gap: 12px;
-    margin-bottom: 16px;
-}
-
-.stat-box {
-    flex: 1;
-    background: rgba(255, 255, 255, 0.03);
-    border-radius: 10px;
-    padding: 10px;
-    text-align: center;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.stat-value {
-    display: block;
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: var(--primary);
-}
-
-.stat-label {
-    display: block;
-    font-size: 0.65rem;
+    font-size: 10.5px;
     color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-top: 2px;
 }
 
-.admin-section {
-    margin-top: 8px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-}
+/* --------------------------------------------------------------- buttons -- */
 
+/* One filled button per row is the primary action; everything else is an
+   outlined secondary action. */
 .admin-btn {
-    width: 100%;
-    padding: 10px;
-    border-radius: 8px;
-    border: none;
-    background: rgba(239, 68, 68, 0.1);
-    color: var(--danger);
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
+    padding: 6px 11px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--raised);
+    color: var(--text);
     font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
 
 .admin-btn:hover {
-    background: var(--danger);
-    color: white;
+    border-color: #365287;
+    background: #1c3358;
 }
 
 .admin-btn-secondary {
-    background: rgba(148, 163, 184, 0.1);
+    background: transparent;
     color: var(--text-muted);
     font-weight: 500;
 }
 
-/* Blocked Sites (hard navigation block) */
-.blocklist-section {
-    margin-top: 12px;
-    padding-top: 16px;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-}
-
-.blocklist-row {
-    display: flex;
-    gap: 8px;
-}
-
-.blocklist-row input {
-    flex: 1;
-    min-width: 0;
-    padding: 8px 10px;
-    border-radius: 8px;
-    border: 1px solid #334155;
-    background: var(--bg);
+.admin-btn-secondary:hover {
+    background: var(--raised);
     color: var(--text);
-    font-family: inherit;
-    font-size: 0.85rem;
-    outline: none;
-    transition: border-color 0.2s;
-}
-
-.blocklist-row input:focus {
-    border-color: var(--primary);
 }
 
 .blocklist-add {
-    padding: 8px 14px;
-    border-radius: 8px;
-    border: none;
+    padding: 6px 11px;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
     background: var(--primary);
-    color: white;
-    font-weight: 600;
+    color: #fff;
     font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
     transition: background 0.2s;
 }
@@ -493,15 +460,54 @@ input:checked+.slider:before {
     background: var(--primary-hover);
 }
 
+/* Two actions share a row; .admin-btn is full width by default, which would
+   otherwise push its neighbour out of the row. */
+.blocklist-row {
+    display: flex;
+    gap: 6px;
+}
+
+.blocklist-row > .admin-btn,
+.blocklist-row > .blocklist-add {
+    width: auto;
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.blocklist-row input {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 9px;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11.5px;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.blocklist-row input::placeholder {
+    color: #6d7d9c;
+}
+
+.blocklist-row input:focus {
+    border-color: var(--primary);
+}
+
+/* ------------------------------------------------------------ block list -- */
+
 .blocklist {
-    list-style: none;
+    display: flex;
+    flex: 0 1 auto;
+    flex-direction: column;
+    gap: 2px;
+    max-height: 110px;
     margin: 0;
     padding: 0;
-    max-height: 132px;
     overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    list-style: none;
 }
 
 .blocklist:empty {
@@ -512,206 +518,66 @@ input:checked+.slider:before {
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 8px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
+    padding: 4px 6px;
+    background: var(--raised);
+    border-radius: var(--radius-sm);
 }
 
 .blocklist-site {
     flex: 1;
     min-width: 0;
-    font-size: 0.8rem;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-family: var(--mono);
+    font-size: 11.5px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
 
 .blocklist-tag {
-    font-size: 0.6rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--text-muted);
-    background: rgba(148, 163, 184, 0.15);
-    padding: 2px 6px;
-    border-radius: 999px;
     flex-shrink: 0;
+    padding: 1px 5px;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    font-size: 10px;
+    color: var(--text-muted);
 }
 
 .blocklist-remove {
-    width: 20px;
-    height: 20px;
     flex-shrink: 0;
-    border-radius: 6px;
+    width: 18px;
+    height: 18px;
     border: none;
-    background: rgba(239, 68, 68, 0.1);
-    color: var(--danger);
-    font-size: 14px;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 13px;
     line-height: 1;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: background 0.15s, color 0.15s;
 }
 
 .blocklist-remove:hover {
-    background: var(--danger);
-    color: white;
+    background: rgba(210, 96, 77, 0.18);
+    color: var(--danger);
 }
 
 .blocklist-note {
-    font-size: 0.7rem;
+    font-size: 10.5px;
     color: var(--text-muted);
-}
-
-html,
-body {
-    height: auto;
-    max-height: min(600px, 96vh);
-    overflow: hidden;
-}
-
-body {
-    padding: 10px 12px;
-    display: flex;
-    flex-direction: column;
-}
-
-.header {
-    margin-bottom: 8px;
-    gap: 8px;
-}
-
-.logo-icon {
-    width: 28px;
-    height: 28px;
-    border-radius: 7px;
-}
-
-h2 {
-    font-size: 1.1rem;
-}
-
-.stats-container {
-    margin-bottom: 8px;
-    gap: 8px;
-}
-
-.stat-box {
-    padding: 6px 8px;
-    border-radius: 8px;
-}
-
-.stat-value {
-    font-size: 1.05rem;
-}
-
-.stat-label {
-    font-size: 0.65rem;
-}
-
-.status-card {
-    padding: 10px 12px;
-    margin-bottom: 8px;
-    gap: 6px;
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-}
-
-.control-group {
-    gap: 6px;
-    flex: 0 0 auto;
-}
-
-.control-item {
-    padding: 6px 0;
-}
-
-.label-info span:first-child {
-    font-size: 0.88rem;
-}
-
-.label-info span:last-child {
-    font-size: 0.72rem;
-}
-
-.range-container {
-    margin-top: 4px;
-}
-
-.range-labels {
-    margin-top: 3px;
-}
-
-.blocklist-section {
-    margin-top: 8px;
-    padding-top: 8px;
-    gap: 6px;
-    flex: 1 1 auto;
-    min-height: 0;
-}
-
-.blocklist-row {
-    gap: 8px;
-}
-
-.blocklist-row input {
-    padding: 7px 10px;
-    font-size: 0.85rem;
-}
-
-.blocklist-add {
-    padding: 7px 12px;
-    font-size: 0.85rem;
-}
-
-.blocklist {
-    flex: 1 1 auto;
-    min-height: 0;
-    max-height: 110px;
-    gap: 4px;
-}
-
-.blocklist li {
-    padding: 5px 8px;
-    border-radius: 8px;
-}
-
-.blocklist-site {
-    font-size: 0.82rem;
-}
-
-.blocklist-note {
-    font-size: 0.68rem;
-}
-
-.admin-section {
-    margin-top: 8px;
-    padding-top: 8px;
-    flex: 0 0 auto;
-}
-
-.admin-btn {
-    padding: 8px 10px;
-    font-size: 0.82rem;
 }
 
 .footer {
+    margin-top: 10px;
     text-align: center;
-    margin-top: 16px;
-    font-size: 0.7rem;
+    font-size: 10.5px;
     color: var(--text-muted);
 }
 
-.admin-btn-secondary:hover {
-    background: rgba(148, 163, 184, 0.2);
-    color: var(--text);
-}
-
-.footer {
-    text-align: center;
-    margin-top: 16px;
-    font-size: 0.7rem;
-    color: var(--text-muted);
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        transition: none !important;
+        animation: none !important;
+    }
 }

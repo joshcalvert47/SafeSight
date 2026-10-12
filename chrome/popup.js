@@ -1,178 +1,15 @@
 // popup.js
-
-import { initializeApp } from "./firebase/firebase-app.js";
-import { getAuth, signOut, onAuthStateChanged, getIdToken } from "./firebase/firebase-auth.js";
-
-const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyAJ79A9ZSXT-MLyTlSlPC5bWk2x2eo2qAo",
-  authDomain: "safesight-3b61f.firebaseapp.com",
-  projectId: "safesight-3b61f",
-  storageBucket: "safesight-3b61f.firebasestorage.app",
-  messagingSenderId: "816580635380",
-  appId: "1:816580635380:web:738203cf7a5900034f8ca1"
-};
-
-const app = initializeApp(FIREBASE_CONFIG);
-const auth = getAuth(app);
+//
+// Entirely local: there is no account, no sign-in and no server. Everything the
+// panel can change is a chrome.storage.local key that the content script and the
+// service worker read directly.
+const aiFilterCheck = document.getElementById('aiFilter');
 const skinFilterCheck = document.getElementById('skinFilter');
 const blurAllCheck = document.getElementById('blurAll');
 const sensitivityRange = document.getElementById('sensitivity');
 const sensitivityVal = document.getElementById('sensitivityVal');
 const statScanned = document.getElementById('statScanned');
 const statBlocked = document.getElementById('statBlocked');
-const profileBtn = document.getElementById('profileBtn');
-const signInBtn = document.getElementById('signInBtn');
-const profileMenu = document.getElementById('profileMenu');
-const userName = document.getElementById('userName');
-const userAvatar = document.getElementById('userAvatar');
-const userStatusDot = document.getElementById('userStatusDot');
-
-// ---------------------------------------------------------------------------
-// Account
-// ---------------------------------------------------------------------------
-const WORKER_URL = "https://safesight.funbyte.net";
-const ACCOUNT_KEYS = ['clientId', 'deviceId', 'accountEmail', 'accountName', 'accountReady', 'firebaseUid'];
-
-let currentUser = null;
-let idToken = null;
-
-async function refreshToken() {
-    if (currentUser) {
-        idToken = await getIdToken(currentUser, true);
-    }
-    return idToken;
-}
-
-onAuthStateChanged(auth, async (user) => {
-    currentUser = user;
-    if (!user) {
-        idToken = null;
-        return;
-    }
-    idToken = await getIdToken(user, true);
-    // Auto-register account on server after Google sign-in
-    await registerWithGoogle(user);
-    renderAccountUI();
-});
-
-async function registerWithGoogle(user) {
-    const res = await chrome.storage.local.get(ACCOUNT_KEYS);
-    if (res.accountReady) return; // Already registered
-
-    const email = user.email.toLowerCase();
-    const accountName = user.displayName || email.split('@')[0];
-    const firstName = (user.displayName || '').split(' ')[0] || '';
-    const lastName = ((user.displayName || '').split(' ').slice(1).join(' ') || '').trim() || '';
-
-    try {
-        const id = crypto.randomUUID ? crypto.randomUUID() : 'dev-' + Date.now().toString(36);
-        const ua = navigator.userAgent;
-        const device = 'Chrome / ' + (ua.includes('Mac') ? 'macOS' : ua.includes('Windows') ? 'Windows' : ua.includes('Linux') ? 'Linux' : 'other');
-        let version = '0.0.0';
-        try { version = chrome?.runtime?.getManifest?.().version || '0.0.0'; } catch(e) {}
-
-        const r = await fetch(WORKER_URL + '/api/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                email,
-                accountName,
-                firstName,
-                lastName,
-                phone: '',
-                password: '',
-                deviceId: id,
-                device,
-                version,
-                ua: ua.slice(0, 160),
-                firebaseUid: user.uid,
-                googleSignIn: true
-            })
-        });
-
-        const j = await r.json().catch(() => ({}));
-
-        if (r.ok && j.id) {
-            await chrome.storage.local.set({
-                clientId: j.id,
-                deviceId: id,
-                accountEmail: j.email || email,
-                accountName: j.accountName || accountName,
-                accountReady: true,
-                firebaseUid: user.uid
-            });
-        }
-    } catch (err) {
-        console.error('Auto-register error:', err);
-    }
-}
-
-async function ensureRegistered() {
-    const res = await chrome.storage.local.get(['clientId', 'accountReady']);
-    if (res.clientId && res.accountReady) {
-        return res.clientId;
-    }
-    // Don't open login page — let the user click the sign-in button in the popup
-    return null;
-}
-
-function accountLocked() {
-    return false;
-}
-
-async function lockedAlert() {
-    return false;
-}
-
-async function guardDestructive(action) {
-    if (accountLocked()) return lockedAlert();
-
-    // Try Firebase token first
-    if (currentUser) {
-        await refreshToken();
-        if (idToken) {
-            try {
-                const r = await fetch(WORKER_URL + '/api/verify', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': 'Bearer ' + idToken
-                    },
-                    body: JSON.stringify({ id: (await chrome.storage.local.get('clientId'))?.clientId || '', action })
-                });
-                const j = await r.json();
-                if (j.ok) return true;
-                // If token verification fails, fall back to PIN
-            } catch (e) {
-                // Fall back to PIN
-            }
-        }
-    }
-
-    // Fallback: PIN verification
-    const res = await chrome.storage.local.get(['clientId', 'accountReady']);
-    if (!res.clientId || !res.accountReady) {
-        alert('Registration is required first.');
-        chrome.tabs.create({ url: chrome.runtime.getURL('login.html') });
-        return false;
-    }
-    const pin = prompt('Enter your PIN to ' + action + ':');
-    if (!pin) return false;
-    try {
-        const r = await fetch(WORKER_URL + '/api/verify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: res.clientId, pin: pin.trim(), action })
-        });
-        const j = await r.json();
-        if (j.ok) return true;
-        if (j.error === 'account_pending') return lockedAlert();
-        alert(j.locked ? 'Too many attempts — locked for ' + Math.ceil((j.retry || 300) / 60) + ' min.' : 'Incorrect PIN.');
-    } catch (e) {
-        alert('Could not reach the SafeSight server — try again later.');
-    }
-    return false;
-}
 
 // ---------------------------------------------------------------------------
 // Blocked sites
@@ -254,7 +91,6 @@ async function saveBlocklist() {
 }
 
 async function removeBlockSite(entry) {
-    if (!(await guardDestructive('remove "' + entry.site + '" from the block list'))) return;
     blockUser = blockUser.filter((s) => s !== entry.site);
     await saveBlocklist();
     renderBlocklist();
@@ -302,145 +138,267 @@ if (blockSiteInput) {
 })();
 
 
-function getSensitivityLabel(val) {
-    val = parseInt(val);
-    if (isNaN(val)) return 'Standard (4)';
-    if (val <= 3) return `Relaxed (${val})`;
-    if (val <= 6) return `Standard (${val})`;
-    return `Strict (${val})`;
+// The stored value is a strictness level, not the score cutoff: 1 is the most
+// permissive, 9 the most aggressive. The model scores an image 0-10, so the
+// level maps to the score at which an image gets blurred.
+function sensitivityCutoff(level) {
+    return 10 - parseInt(level);
+}
+
+function sensitivityBand(level) {
+    const val = parseInt(level);
+    if (isNaN(val) || val <= 3) return 'Relaxed';
+    if (val <= 6) return 'Standard';
+    return 'Strict';
+}
+
+// The readout reports the strictness LEVEL, so both halves move the same way as
+// the slider. Printing the score cutoff here was a mistake: the cutoff falls as
+// strictness rises, so dragging toward "Strict" made the number go *down* and
+// the control read as reversed even when the behaviour was correct.
+function getSensitivityLabel(level) {
+    const val = parseInt(level);
+    if (isNaN(val)) return 'Standard · 6/9';
+    return `${sensitivityBand(val)} · ${val}/9`;
+}
+
+// One place that turns a level into what the popup shows, so the readout and
+// the live drag can never disagree.
+function renderSensitivity(level) {
+    sensitivityRange.value = level;
+    sensitivityVal.innerText = getSensitivityLabel(level);
+    sensitivityVal.title = `${sensitivityBand(level)} ${level}/9: images scoring ${sensitivityCutoff(level)} or more are blurred.`;
 }
 
 function statusClass(status) {
     return 'status-dot';
 }
 
-function statusLabel(status) {
-    return 'Active';
+// ---------------------------------------------------------------------------
+// Network filtering (the declarativeNetRequest lane)
+//
+// The popup is a thin view over the service worker's filter-manager: it asks
+// for state and sends intents, so there is exactly one place that owns the
+// ruleset and dynamic-rule reconciliation.
+// ---------------------------------------------------------------------------
+const filterAdult = document.getElementById('filterAdult');
+const filterMalware = document.getElementById('filterMalware');
+const filterAds = document.getElementById('filterAds');
+const siteStateText = document.getElementById('siteStateText');
+const siteToggle = document.getElementById('siteToggle');
+const zapBtn = document.getElementById('zapBtn');
+const filterNote = document.getElementById('filterNote');
+const statAdsHidden = document.getElementById('statAdsHidden');
+const staleNotice = document.getElementById('staleNotice');
+const staleReload = document.getElementById('staleReload');
+
+let filterStatus = null;
+
+// Must match FILTER_CONTRACT in content.js. Reloading the extension does not
+// re-inject content scripts into tabs that are already open, so those tabs keep
+// filtering by the old rules while this popup shows the new ones. Asking the
+// page for its contract is how the popup can tell the difference and say so.
+const FILTER_CONTRACT = 2;
+
+async function contentScriptContract() {
+    const tab = await activeTab();
+    if (!tab || typeof tab.id !== 'number') return 'absent';
+    if (!/^https?:/.test(tab.url || '')) return 'absent';
+    try {
+        const reply = await chrome.tabs.sendMessage(tab.id, { type: 'FILTER_CONTRACT' });
+        // A listener that answers nothing is a build that predates the contract.
+        if (!reply || Number(reply.contract) < FILTER_CONTRACT) return 'stale';
+        return 'current';
+    } catch (e) {
+        // Nothing is listening: a restricted page, an excluded host, or a tab
+        // that has never had the content script. Nothing to warn about.
+        return 'absent';
+    }
 }
 
-async function renderAccountUI() {
-    const res = await chrome.storage.local.get(['clientId', 'accountReady', 'accountName', 'accountEmail']);
-    const signedIn = !!(res.clientId && res.accountReady && res.accountName);
+async function refreshContractNotice() {
+    if (!staleNotice) return;
+    const state = await contentScriptContract();
+    staleNotice.hidden = state !== 'stale';
+    return state;
+}
 
-    closeProfileMenu();
-    if (!signedIn) {
-        profileBtn.style.display = 'none';
-        signInBtn.style.display = 'inline-flex';
+if (staleReload) {
+    staleReload.onclick = async () => {
+        staleNotice.hidden = true;
+        const tab = await activeTab();
+        if (!tab || typeof tab.id !== 'number') return;
+        chrome.tabs.reload(tab.id);
+    };
+}
+
+// Nothing in the popup animates until this runs. The stored values land after
+// the defaults have already been painted, so without the gate every switch
+// visibly slid into position while the popup was opening.
+let readyMarked = false;
+function markReady() {
+    if (readyMarked) return;
+    readyMarked = true;
+    document.documentElement.classList.add('ready');
+}
+
+function activeTab() {
+    return new Promise((resolve) => {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => resolve(tabs && tabs[0]));
+    });
+}
+
+async function loadFilterStatus() {
+    refreshContractNotice();
+    const tab = await activeTab();
+    const url = (tab && tab.url) || '';
+    let status = null;
+    try {
+        status = await chrome.runtime.sendMessage({ type: 'GET_FILTER_STATUS', url });
+    } catch (e) {
+        filterNote.textContent = 'Filtering service is starting — reopen the popup.';
         return;
     }
+    if (!status) return;
+    filterStatus = status;
 
-    signInBtn.style.display = 'none';
-    profileBtn.style.display = 'flex';
+    filterAdult.checked = !!status.categories.adult;
+    filterMalware.checked = !!status.categories.malware;
+    filterAds.checked = !!status.categories.ads;
+    statAdsHidden.innerText = status.cosmeticHidden || 0;
+    markReady();
 
-    const name = res.accountName;
-    const initial = name.charAt(0).toUpperCase();
+    const rest = Array.isArray(status.enabledRulesets) ? status.enabledRulesets : [];
+    const unexpected = ['adult', 'malware', 'ads'].filter((id) => status.categories[id] && !rest.includes(id));
+    filterNote.textContent = unexpected.length
+        ? 'Could not enable: ' + unexpected.join(', ') + ' — try updating SafeSight.'
+        : 'Blocked requests are counted on the toolbar badge.';
 
-    userName.textContent = name;
-    userAvatar.textContent = initial;
-    userStatusDot.title = 'Active';
-
-    document.getElementById('menuAvatar').textContent = initial;
-    document.getElementById('menuName').textContent = name;
-    document.getElementById('menuEmail').textContent = res.accountEmail || '';
-    document.getElementById('menuStatusText').textContent = 'Active';
+    const host = status.host;
+    if (!host || !/^https?:/.test(url)) {
+        siteStateText.textContent = 'Not available on this page';
+        siteToggle.disabled = true;
+        zapBtn.disabled = true;
+        return;
+    }
+    zapBtn.disabled = false;
+    siteToggle.disabled = false;
+    siteStateText.textContent = status.siteOff ? 'Network filtering is OFF here' : 'Network filtering is on';
+    siteToggle.textContent = status.siteOff ? 'Turn on here' : 'Turn off here';
 }
 
-function closeProfileMenu() {
-    if (!profileMenu) return;
-    profileMenu.style.display = 'none';
-    if (profileBtn) profileBtn.setAttribute('aria-expanded', 'false');
+async function setCategory(category, enabled, input) {
+    const resp = await chrome.runtime.sendMessage({ type: 'SET_FILTER_CATEGORY', category, enabled });
+    if (!resp || !resp.ok) { input.checked = !enabled; }
+    loadFilterStatus();
 }
 
-if (profileBtn) {
-    profileBtn.onclick = async (e) => {
-        e.stopPropagation();
-        const open = profileMenu.style.display === 'block';
-        profileMenu.style.display = open ? 'none' : 'block';
-        profileBtn.setAttribute('aria-expanded', String(!open));
+if (filterAdult) filterAdult.onchange = () => setCategory('adult', filterAdult.checked, filterAdult);
+if (filterMalware) filterMalware.onchange = () => setCategory('malware', filterMalware.checked, filterMalware);
+if (filterAds) filterAds.onchange = () => setCategory('ads', filterAds.checked, filterAds);
+
+if (siteToggle) {
+    siteToggle.onclick = async () => {
+        if (!filterStatus || !filterStatus.host) return;
+        siteToggle.disabled = true;
+        await chrome.runtime.sendMessage({
+            type: 'SET_SITE_OFF',
+            host: filterStatus.host,
+            off: !filterStatus.siteOff
+        });
+        siteToggle.disabled = false;
+        const tab = await activeTab();
+        if (tab && tab.id) chrome.tabs.reload(tab.id);
+        loadFilterStatus();
     };
 }
 
-if (profileMenu) profileMenu.onclick = (e) => e.stopPropagation();
-document.addEventListener('click', closeProfileMenu);
-
-if (signInBtn) {
-    // MV3 CSP blocks Firebase's signInWithPopup (it loads
-    // https://apis.google.com/js/api.js), and an interactive OAuth window would
-    // close this popup mid-flow anyway. Sign-in lives on login.html, which runs
-    // the flow through chrome.identity; the storage listener below refreshes
-    // this UI when the account appears.
-    signInBtn.onclick = () => {
-        chrome.tabs.create({ url: chrome.runtime.getURL('login.html') });
+if (zapBtn) {
+    zapBtn.onclick = async () => {
+        const tab = await activeTab();
+        if (!tab) return;
+        // The injection happens in the page, so the popup closes; the zap is
+        // then applied by the service worker when the click result arrives.
+        const r = await chrome.runtime.sendMessage({ type: 'START_ELEMENT_TOOL', mode: 'zap', tabId: tab.id });
+        if (r && r.ok) window.close();
+        else filterNote.textContent = 'Cannot zap on this page (browser pages are off limits).';
     };
 }
 
-const menuAccount = document.getElementById('menuAccount');
-if (menuAccount) {
-    menuAccount.onclick = () => chrome.tabs.create({ url: chrome.runtime.getURL('login.html') });
+loadFilterStatus();
+
+// The three ML settings are inert while the master switch is off, so disable
+// them rather than leaving switches that appear to do something.
+function syncAiSubControls() {
+    const off = !aiFilterCheck.checked;
+    [skinFilterCheck, blurAllCheck, sensitivityRange].forEach((el) => {
+        if (el) el.disabled = off;
+    });
+    const card = aiFilterCheck.closest('.status-card');
+    if (card) card.classList.toggle('lane-off', off);
 }
 
-const menuSignOut = document.getElementById('menuSignOut');
-if (menuSignOut) {
-    menuSignOut.onclick = async () => {
-        if (!confirm('Sign out of SafeSight on this device?\n\nFilters keep running, but you will need to sign in again to manage them.')) return;
-        await signOut(auth);
-        await chrome.storage.local.remove(['clientId', 'deviceId', 'accountEmail', 'accountName', 'accountReady', 'firebaseUid']);
-        await renderAccountUI();
+if (aiFilterCheck) {
+    aiFilterCheck.onchange = () => {
+        syncAiSubControls();
+        chrome.storage.local.set({ aiFilter: aiFilterCheck.checked });
+        refreshContractNotice();
     };
 }
 
-chrome.storage.local.get(['skinFilter', 'blurAll', 'sensitivity', 'scannedCount', 'blockedCount'], (res) => {
+chrome.storage.local.get(['aiFilter', 'skinFilter', 'blurAll', 'sensitivity', 'scannedCount', 'blockedCount', 'cosmeticHiddenCount'], (res) => {
+    // Unset means on, matching content.js.
+    aiFilterCheck.checked = res.aiFilter !== false;
+    syncAiSubControls();
     skinFilterCheck.checked = !!res.skinFilter;
     blurAllCheck.checked = !!res.blurAll;
-    const sens = res.sensitivity ?? 4;
-    sensitivityRange.value = sens;
-    sensitivityVal.innerText = getSensitivityLabel(sens);
+    const sens = res.sensitivity ?? 6;
+    renderSensitivity(sens);
     statScanned.innerText = res.scannedCount || 0;
     statBlocked.innerText = res.blockedCount || 0;
+    if (statAdsHidden) statAdsHidden.innerText = res.cosmeticHiddenCount || 0;
+    markReady();
 });
 
-renderAccountUI();
+// If the worker never answers, still release the animation gate so the popup is
+// not permanently stuck in its no-transition state.
+setTimeout(markReady, 600);
 
 chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== 'local') return;
     if (changes.scannedCount) statScanned.innerText = changes.scannedCount.newValue;
     if (changes.blockedCount) statBlocked.innerText = changes.blockedCount.newValue;
-    if (changes.accountName || changes.accountEmail || changes.accountReady || changes.clientId) {
-        renderAccountUI();
-    }
+    if (changes.cosmeticHiddenCount && statAdsHidden) statAdsHidden.innerText = changes.cosmeticHiddenCount.newValue || 0;
+    if (changes.aiFilter) { aiFilterCheck.checked = changes.aiFilter.newValue !== false; syncAiSubControls(); }
+    // Without this the readout keeps the value it was opened with, because the
+    // stored setting can change from another window or from an update.
+    if (changes.sensitivity && changes.sensitivity.newValue != null) renderSensitivity(changes.sensitivity.newValue);
+    if (changes.filterCategories || changes.filterSiteOff || changes.userCSS) loadFilterStatus();
 });
 
-skinFilterCheck.onchange = async () => {
-    if (!skinFilterCheck.checked) {
-        if (accountLocked()) { skinFilterCheck.checked = true; lockedAlert(); return; }
-        if (!(await guardDestructive('disable the skin filter'))) { skinFilterCheck.checked = true; return; }
-    }
+// Changing a setting is exactly when a page running older rules starts to
+// disagree with what the popup says, so re-check on every change.
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local') return;
+    if (changes.sensitivity || changes.skinFilter || changes.blurAll || changes.aiFilter) refreshContractNotice();
+});
+
+skinFilterCheck.onchange = () => {
     chrome.storage.local.set({ skinFilter: skinFilterCheck.checked });
+    refreshContractNotice();
 };
 
-blurAllCheck.onchange = async () => {
-    if (!blurAllCheck.checked) {
-        if (accountLocked()) { blurAllCheck.checked = true; lockedAlert(); return; }
-        if (!(await guardDestructive('disable blur-all'))) { blurAllCheck.checked = true; return; }
-    }
+blurAllCheck.onchange = () => {
     chrome.storage.local.set({ blurAll: blurAllCheck.checked });
+    refreshContractNotice();
 };
 
 sensitivityRange.oninput = () => {
-    const val = sensitivityRange.value;
-    sensitivityVal.innerText = getSensitivityLabel(val);
+    sensitivityVal.innerText = getSensitivityLabel(sensitivityRange.value);
+    sensitivityVal.title = `${sensitivityBand(sensitivityRange.value)} ${sensitivityRange.value}/9: images scoring ${sensitivityCutoff(sensitivityRange.value)} or more are blurred.`;
 };
 
-sensitivityRange.onchange = async () => {
-    if (accountLocked()) {
-        sensitivityRange.disabled = true;
-        sensitivityVal.innerText = getSensitivityLabel(sensitivityRange.value);
-        lockedAlert();
-        return;
-    }
+sensitivityRange.onchange = () => {
     chrome.storage.local.set({ sensitivity: parseInt(sensitivityRange.value) });
+    refreshContractNotice();
 };
-
-(async function start() {
-    ensureRegistered();
-})();

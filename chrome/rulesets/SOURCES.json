@@ -1,0 +1,111 @@
+{
+  "generatedAt": "2026-10-12T11:29:49.504Z",
+  "chunkSize": 1000,
+  "withinBuild": "Adult wins a domain that also appears in the ads list, so adult domains are never downgraded to a third-party-only block.",
+  "allowlist": [
+    "funbyte.net",
+    "safesight.funbyte.net",
+    "google.com",
+    "googleapis.com",
+    "gstatic.com",
+    "googleusercontent.com",
+    "googlevideo.com",
+    "youtube.com",
+    "ytimg.com",
+    "ggpht.com",
+    "firebaseapp.com",
+    "firebaseio.com",
+    "firebaseinstallations.googleapis.com",
+    "cloudflare.com",
+    "cloudflare-dns.com",
+    "cdnjs.cloudflare.com",
+    "jsdelivr.net",
+    "unpkg.com",
+    "fastly.net",
+    "akamai.net",
+    "akamaized.net",
+    "amazonaws.com",
+    "cloudfront.net",
+    "azureedge.net",
+    "bootstrapcdn.com",
+    "fonts.googleapis.com",
+    "fonts.gstatic.com",
+    "typekit.net",
+    "w3.org",
+    "schema.org",
+    "wikipedia.org",
+    "wikimedia.org",
+    "archive.org",
+    "github.com",
+    "githubusercontent.com",
+    "apple.com",
+    "icloud.com",
+    "cdn-apple.com",
+    "microsoft.com",
+    "microsoftonline.com",
+    "live.com",
+    "windowsupdate.com",
+    "mozilla.org",
+    "mozilla.net",
+    "duckduckgo.com"
+  ],
+  "sources": [
+    {
+      "category": "adult",
+      "url": "https://raw.githubusercontent.com/StevenBlack/hosts/master/alternates/porn-only/hosts",
+      "license": "StevenBlack repo: MIT. Merged upstream sources vary — review before commercial release.",
+      "attribution": "StevenBlack/hosts (alternates/porn-only)",
+      "fetchedAt": "2026-10-12T11:29:49.192Z",
+      "fromCache": false,
+      "domainsInSource": 64291,
+      "domainsKept": 64286,
+      "domainsAllowlisted": 5,
+      "domainsAlreadyClaimed": 0
+    },
+    {
+      "category": "malware",
+      "url": "https://urlhaus.abuse.ch/downloads/hostfile/",
+      "license": "CC0 (public domain dedication)",
+      "attribution": "abuse.ch URLhaus hostfile",
+      "fetchedAt": "2026-10-12T11:29:49.274Z",
+      "fromCache": false,
+      "domainsInSource": 407,
+      "domainsKept": 407,
+      "domainsAllowlisted": 0,
+      "domainsAlreadyClaimed": 0
+    },
+    {
+      "category": "ads",
+      "url": "https://raw.githubusercontent.com/StevenBlack/hosts/master/hosts",
+      "license": "StevenBlack repo: MIT. Merged upstream sources vary — review before commercial release.",
+      "attribution": "StevenBlack/hosts (unified hosts + fakenews + gambling + social)",
+      "fetchedAt": "2026-10-12T11:29:49.481Z",
+      "fromCache": false,
+      "domainsInSource": 53672,
+      "domainsKept": 51995,
+      "domainsAllowlisted": 683,
+      "domainsAlreadyClaimed": 994
+    }
+  ],
+  "rulesets": [
+    {
+      "id": "adult",
+      "enabled": true,
+      "path": "rulesets/adult.json"
+    },
+    {
+      "id": "malware",
+      "enabled": true,
+      "path": "rulesets/malware.json"
+    },
+    {
+      "id": "ads",
+      "enabled": true,
+      "path": "rulesets/ads.json"
+    }
+  ],
+  "totals": {
+    "rules": 236,
+    "domains": 116688
+  }
+}

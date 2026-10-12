@@ -6,6 +6,28 @@
 let readyModel = null;
 let modelLoading = null;
 
+// ---------------------------------------------------------------------------
+// One-off storage migrations
+// ---------------------------------------------------------------------------
+// `sensitivity` used to hold the model score at which an image is blurred,
+// which wired the popup's slider backwards: dragging it toward "Strict" made
+// the filter block *less*. It is now a strictness level (higher = stricter) and
+// content.js maps it back to a cutoff, so existing profiles are converted once
+// rather than silently flipping to the opposite strictness.
+const SENSITIVITY_SCALE_KEY = 'sensitivityScale';
+const SENSITIVITY_SCALE = 2;
+
+async function migrateSensitivityScale() {
+    const res = await chrome.storage.local.get([SENSITIVITY_SCALE_KEY, 'sensitivity']);
+    if (res[SENSITIVITY_SCALE_KEY] === SENSITIVITY_SCALE) return;
+    const updates = { [SENSITIVITY_SCALE_KEY]: SENSITIVITY_SCALE };
+    const old = Number(res.sensitivity);
+    if (Number.isFinite(old) && old >= 1 && old <= 9) updates.sensitivity = 10 - old;
+    await chrome.storage.local.set(updates);
+}
+
+migrateSensitivityScale().catch(() => { });
+
 async function initializeModel() {
     if (readyModel) return readyModel;
     if (modelLoading) return modelLoading;

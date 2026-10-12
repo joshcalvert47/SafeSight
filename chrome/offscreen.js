@@ -31,9 +31,19 @@ async function initializeModel(url) {
 // Load the model once on startup
 initializeModel('./nsfw.tflite');
 
-chrome.runtime.onMessage.addListener(async (message) => {
+// Deliberately NOT an async listener. An async listener returns a Promise, and
+// Chrome treats that promise as "this listener will respond", keeping the
+// message channel open on it. Every other listener in the extension then races
+// a promise that never resolves, so their real response is discarded — the
+// popup's filter-status request came back null because of exactly this. The
+// work is kicked off and its result is reported by posting AI_RESULT_OFFSCREEN,
+// not by returning anything.
+chrome.runtime.onMessage.addListener((message) => {
     if (message.type !== 'OFFSCREEN_ANALYZE') return;
+    analyze(message);
+});
 
+async function analyze(message) {
     try {
         // Requests can arrive while the offscreen document is still loading the model.
         // Wait instead of dropping them, otherwise the page remains blurred forever.
@@ -107,4 +117,4 @@ chrome.runtime.onMessage.addListener(async (message) => {
             });
         }
     }
-});
+}

@@ -88,8 +88,8 @@
         <div class="container cols3">
             <div class="col reveal">
                 <h3>Explicit images, blurred</h3>
-                <p>A LiteRT model scores every image 0 to 10 before it renders. Anything above
-                    your sensitivity setting is blurred on your own device.</p>
+                <p>A LiteRT model scores every image 0 to 10 before it renders. The higher your
+                    sensitivity, the more of that scale gets blurred — on your own device.</p>
             </div>
             <div class="col reveal">
                 <h3>Unwanted sites, blocked</h3>
@@ -119,8 +119,9 @@
                 </div>
                 <div class="row">
                     <h3 class="row-term">Adjustable sensitivity</h3>
-                    <p class="row-desc">A 1 to 9 scale. Borderline images get a second, center-cropped
-                        measurement and the two verdicts are averaged.</p>
+                    <p class="row-desc">A 1 to 9 scale: 1 is the most permissive, 9 the most
+                        aggressive. Borderline images get a second, center-cropped measurement and
+                        the two verdicts are averaged.</p>
                 </div>
                 <div class="row">
                     <h3 class="row-term">Blur-all and skin overlay</h3>
@@ -294,7 +295,9 @@
                     <summary>How is the score calculated?<svg class="chev" width="15" height="15"><use href="#i-arrow"/></svg></summary>
                     <p>The model outputs five class probabilities: neutral, drawing, hentai, porn and
                         sexy. SafeSight combines the explicit classes into a weighted 0 to 10 score.
-                        Your sensitivity, from 1 to 9, is the threshold.</p>
+                        Your sensitivity, from 1 to 9, sets the score at which an image is blurred:
+                        level 1 blurs only near-certainties, level 9 blurs anything the model does
+                        not call neutral.</p>
                 </details>
                 <details>
                     <summary>How many devices can I use?<svg class="chev" width="15" height="15"><use href="#i-arrow"/></svg></summary>

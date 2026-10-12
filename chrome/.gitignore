@@ -1,0 +1,6 @@
+# Packaging dead weight: a Web Store upload must not carry these.
+Archive.zip
+modeltest/
+
+# _metadata is written by Chrome when an unpacked extension is loaded via CDP.
+_metadata/

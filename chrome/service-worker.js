@@ -1,5 +1,33 @@
 // service-worker.js
+//
+// importScripts (not ESM) so the manifest's background entry stays a classic
+// worker: filter-manager.js is additive, and switching to "type": "module"
+// would change how every existing listener in this file is parsed.
+importScripts('filter-manager.js');
+
 let creating; // A global promise to avoid race conditions
+
+// ---------------------------------------------------------------------------
+// One-off storage migrations
+// ---------------------------------------------------------------------------
+// `sensitivity` used to hold the model score at which an image is blurred,
+// which wired the popup's slider backwards: dragging it toward "Strict" made
+// the filter block *less*. It is now a strictness level (higher = stricter) and
+// content.js maps it back to a cutoff, so existing profiles are converted once
+// rather than silently flipping to the opposite strictness.
+const SENSITIVITY_SCALE_KEY = 'sensitivityScale';
+const SENSITIVITY_SCALE = 2;
+
+async function migrateSensitivityScale() {
+    const res = await chrome.storage.local.get([SENSITIVITY_SCALE_KEY, 'sensitivity']);
+    if (res[SENSITIVITY_SCALE_KEY] === SENSITIVITY_SCALE) return;
+    const updates = { [SENSITIVITY_SCALE_KEY]: SENSITIVITY_SCALE };
+    const old = Number(res.sensitivity);
+    if (Number.isFinite(old) && old >= 1 && old <= 9) updates.sensitivity = 10 - old;
+    await chrome.storage.local.set(updates);
+}
+
+migrateSensitivityScale().catch(() => { });
 
 // ---------------------------------------------------------------------------
 // Offscreen document lifecycle
@@ -28,9 +56,18 @@ async function setupOffscreen() {
 
 // Ensure offscreen doc is ready on start
 chrome.runtime.onStartup.addListener(setupOffscreen);
+// The network lane has to be reconciled on every start: Chrome does not
+// persist which static rulesets are enabled across an extension update, and
+// the user's site lists compile into dynamic rules that must exist before the
+// first request of the session is judged.
+chrome.runtime.onStartup.addListener(() => { initFilterManager().catch(() => { }); });
+initFilterManager().catch(() => { });
+
 chrome.runtime.onInstalled.addListener(async (details) => {
     setupOffscreen();
     setupContextMenus();
+    initFilterManager().catch(() => { });
+    migrateSensitivityScale().catch(() => { });
 
     if (details.reason === 'update') {
         const currentVersion = chrome.runtime.getManifest().version;
@@ -106,6 +143,9 @@ const MENU_ALLOW = 'safesight-allow-site';
 const MENU_BLOCK = 'safesight-block-site';
 const MENU_TOGGLE = 'safesight-toggle-site';
 const MENU_NAV_BLOCK = 'safesight-nav-block-site';
+const MENU_FILTER_OFF = 'safesight-filter-off-site';
+const MENU_ZAP = 'safesight-zap-element';
+const MENU_PICK = 'safesight-pick-element';
 
 function hostFromUrl(url) {
     try { return new URL(url).hostname.replace(/^www\./, ''); } catch (e) { return null; }
@@ -137,7 +177,60 @@ async function setupContextMenus() {
             title: 'SafeSight: Disable filtering on this tab',
             contexts: ['all']
         });
+        chrome.contextMenus.create({
+            id: MENU_FILTER_OFF,
+            title: 'SafeSight: Turn off network filtering on this site',
+            contexts: ['all']
+        });
+        chrome.contextMenus.create({
+            id: MENU_ZAP,
+            title: 'SafeSight: Zap an element',
+            contexts: ['all']
+        });
+        chrome.contextMenus.create({
+            id: MENU_PICK,
+            title: 'SafeSight: Pick an element to hide',
+            contexts: ['all']
+        });
     });
+}
+
+// ---------------------------------------------------------------------------
+// Element zapper / picker injection
+//
+// Two steps because executeScript({files}) cannot take arguments: the file
+// defines a factory on the isolated-world window, then a tiny function
+// injection calls it with the mode. Both default to the ISOLATED world, so
+// they share that window.
+// ---------------------------------------------------------------------------
+async function startElementTool(tabId, mode) {
+    if (typeof tabId !== 'number') return { ok: false, error: 'no tab' };
+    try {
+        await chrome.scripting.executeScript({
+            target: { tabId, allFrames: false },
+            files: ['element-tools.js']
+        });
+        await chrome.scripting.executeScript({
+            target: { tabId, allFrames: false },
+            func: (m) => window.__safesightElementToolsFactory(m),
+            args: [mode]
+        });
+        return { ok: true };
+    } catch (e) {
+        // Restricted pages (chrome://, the Web Store, other extensions) refuse
+        // injection. Say so rather than failing silently.
+        return { ok: false, error: String(e && e.message || e) };
+    }
+}
+
+async function applyZap(host, selector) {
+    const res = await chrome.storage.local.get(['userCSS']);
+    const userCSS = res.userCSS || {};
+    const list = Array.isArray(userCSS[host]) ? userCSS[host] : [];
+    if (!list.includes(selector)) list.push(selector);
+    userCSS[host] = list;
+    await chrome.storage.local.set({ userCSS });
+    return list.length;
 }
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
@@ -172,6 +265,23 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
         });
         chrome.tabs.sendMessage(tab.id, { type: 'SITE_TOGGLE', enabled: !nowDisabled }).catch(() => { });
         if (!nowDisabled) chrome.tabs.sendMessage(tab.id, { type: 'RESCAN_PAGE' }).catch(() => { });
+    }
+
+    if (info.menuItemId === MENU_ZAP || info.menuItemId === MENU_PICK) {
+        const r = await startElementTool(tab.id, info.menuItemId === MENU_ZAP ? 'zap' : 'pick');
+        if (!r.ok) console.warn('SafeSight: element tool unavailable on this page —', r.error);
+        return;
+    }
+
+    if (info.menuItemId === MENU_FILTER_OFF) {
+        const off = await isSiteOff(host);
+        await setSiteOff(host, !off);
+        chrome.contextMenus.update(MENU_FILTER_OFF, {
+            title: off
+                ? 'SafeSight: Turn off network filtering on this site'
+                : 'SafeSight: Turn network filtering back on for this site'
+        });
+        chrome.tabs.reload(tab.id);
     }
 
     if (info.menuItemId === MENU_NAV_BLOCK) {
@@ -360,4 +470,91 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return;
     }
 
+    if (message.type === 'COSMETIC_APPLIED') {
+        bumpCosmetic(message.count);
+        return;
+    }
+
+    if (message.type === 'ELEMENT_TOOL_RESULT' && message.result && message.result.ok) {
+        const { action, host, selector } = message.result;
+        (async () => {
+            if (action === 'zap') await applyZap(host, selector);
+            await chrome.storage.local.set({
+                lastElementTool: { action, host, selector, at: Date.now() }
+            });
+        })();
+        return;
+    }
+
+    if (message.type === 'GET_FILTER_STATUS') {
+        (async () => {
+            const categories = await getCategories();
+            let host = '';
+            try { host = new URL(message.url || (sender.tab && sender.tab.url) || '').hostname.replace(/^www\./, ''); } catch (e) { }
+            const store = await chrome.storage.local.get(['cosmeticHiddenCount']);
+            sendResponse({
+                categories,
+                host,
+                sitesOff: await getSitesOff(),
+                siteOff: await isSiteOff(host),
+                enabledRulesets: await chrome.declarativeNetRequest.getEnabledRulesets().catch(() => []),
+                availableStaticRuleCount: await chrome.declarativeNetRequest.getAvailableStaticRuleCount().catch(() => null),
+                cosmeticHidden: store.cosmeticHiddenCount || 0
+            });
+        })();
+        return true;
+    }
+
+    if (message.type === 'SET_FILTER_CATEGORY') {
+        (async () => {
+            const result = await setCategory(message.category, message.enabled);
+            sendResponse({ ok: true, categories: result });
+        })();
+        return true;
+    }
+
+    if (message.type === 'SET_SITE_OFF') {
+        (async () => {
+            sendResponse(await setSiteOff(message.host, !!message.off));
+        })();
+        return true;
+    }
+
+    if (message.type === 'START_ELEMENT_TOOL') {
+        (async () => {
+            sendResponse(await startElementTool(sender.tab && sender.tab.id, message.mode));
+        })();
+        return true;
+    }
+
 });
+
+// ---------------------------------------------------------------------------
+// Keyboard commands for the element tools
+// ---------------------------------------------------------------------------
+try {
+    chrome.commands.onCommand.addListener(async (command) => {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!tab) return;
+        if (command === 'zap-element') await startElementTool(tab.id, 'zap');
+        if (command === 'pick-element') await startElementTool(tab.id, 'pick');
+    });
+} catch (e) { /* commands unavailable */ }
+
+// Cosmetic hides are counted separately from ML image blocks: they are a
+// different kind of event, and merging them would make one number jump for no
+// visible reason.
+const cosmetic = { count: 0, dirty: false, timer: null };
+function bumpCosmetic(n) {
+    cosmetic.count += Number(n) || 0;
+    if (cosmetic.dirty) return;
+    cosmetic.dirty = true;
+    cosmetic.timer = setTimeout(async () => {
+        if (cosmetic.timer) clearTimeout(cosmetic.timer);
+        cosmetic.timer = null;
+        const res = await chrome.storage.local.get(['cosmeticHiddenCount']);
+        await chrome.storage.local.set({ cosmeticHiddenCount: (res.cosmeticHiddenCount || 0) + cosmetic.count });
+        cosmetic.count = 0;
+        cosmetic.dirty = false;
+    }, 3000);
+}

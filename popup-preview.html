@@ -1,0 +1,229 @@
+<!doctype html>
+<html class="ready">
+<head>
+<meta charset="utf-8">
+<title>SafeSight popup - static render</title>
+<style>
+:root { --bg: #0b162e; --surface: #101f3b; --raised: #16294a; --line: #1e3459; --line-strong: #2b4675; --text: #e8ecf3; --text-muted: #93a2bd; --state-on: #3f8f6f; --warn: #c08a45; --danger: #d2604d; --primary: #4c6ad4; --primary-hover: #5b78e0; --radius: 8px; --radius-sm: 6px; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; --ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color-scheme: dark; }
+*, ::before, ::after { box-sizing: border-box; }
+html, body { height: auto; max-height: none; overflow: visible; }
+body { width: 320px; margin: 0px; padding: 10px 12px 12px; background: var(--bg); color: var(--text); font-family: var(--ui); font-size: 13px; line-height: 1.35; -webkit-font-smoothing: antialiased; }
+html:not(.ready) *, html:not(.ready) ::before, html:not(.ready) ::after { transition: none !important; animation: auto ease 0s 1 normal none running none !important; }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.brand { display: flex; align-items: center; gap: 8px; min-width: 0px; }
+.logo-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 24px; height: 24px; }
+.logo-icon img { display: block; width: 100%; height: 100%; object-fit: contain; }
+h2 { margin: 0px; font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.notice { display: flex; align-items: center; gap: 8px; padding: 7px 8px 7px 10px; margin-bottom: 8px; background: rgba(192, 138, 69, 0.14); border-top: 1px solid rgba(192, 138, 69, 0.38); border-right: 1px solid rgba(192, 138, 69, 0.38); border-bottom: 1px solid rgba(192, 138, 69, 0.38); border-image: none; border-left: 2px solid var(--warn); border-radius: var(--radius-sm); }
+.notice[hidden] { display: none; }
+.notice-text { flex: 1 1 auto; min-width: 0px; font-size: 11px; color: var(--text); }
+.notice-action { flex: 0 0 auto; padding: 4px 9px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: transparent; color: var(--text); font-family: inherit; font-size: 11px; font-weight: 500; cursor: pointer; transition: background 0.15s; }
+.notice-action:hover { background: rgba(255, 255, 255, 0.06); }
+.readout { display: flex; align-items: baseline; gap: 6px; white-space: nowrap; padding: 7px 10px; margin-bottom: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); font-family: var(--mono); font-size: 11px; color: var(--text-muted); }
+.readout-item { white-space: nowrap; }
+.readout-item > span { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
+.readout-sep { color: var(--line-strong); }
+.status-card { display: flex; flex-direction: column; flex: 0 0 auto; gap: 6px; padding: 10px 12px; margin-bottom: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.section-title { flex: 0 0 auto; font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap; color: var(--text-muted); }
+.section-hint { flex: 1 1 auto; min-width: 0px; font-size: 11px; text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); }
+.control-group { display: flex; flex-direction: column; flex: 0 0 auto; gap: 4px; }
+.control-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 0px; }
+.label-info { display: flex; flex-direction: column; gap: 1px; min-width: 0px; }
+.label-title { font-size: 12.5px; font-weight: 500; }
+.label-desc { font-size: 11px; color: var(--text-muted); }
+.status-card.lane-off .control-item:not(:first-child) { opacity: 0.4; }
+.switch { position: relative; display: inline-block; flex-shrink: 0; width: 36px; height: 20px; }
+.switch input { position: absolute; inset: 0px; width: 100%; height: 100%; margin: 0px; opacity: 0; cursor: pointer; }
+.slider { position: absolute; inset: 0px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--raised); transition: background 0.18s, border-color 0.18s; }
+.slider::before { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: rgb(194, 203, 224); transition: transform 0.18s, background 0.18s; }
+.switch input:checked + .slider { background: var(--state-on); border-color: var(--state-on); }
+.switch input:checked + .slider::before { transform: translateX(16px); background: rgb(255, 255, 255); }
+.switch input:disabled + .slider { opacity: 0.45; }
+.switch input:focus-visible + .slider { outline: 2px solid var(--primary); outline-offset: 2px; }
+.range-container { width: 100%; }
+.sensitivity-range { appearance: none; width: 100%; height: 14px; background: transparent; outline: none; }
+.sensitivity-range::-webkit-slider-runnable-track { height: 4px; border-radius: 999px; background: var(--raised); border: 1px solid var(--line); }
+.sensitivity-range::-webkit-slider-thumb { appearance: none; width: 14px; height: 14px; margin-top: -6px; border-width: medium; border-style: none; border-color: currentcolor; border-image: none; border-radius: 50%; background: var(--text); cursor: pointer; }
+.sensitivity-range:disabled { opacity: 0.45; }
+.range-labels { display: flex; justify-content: space-between; margin-top: 4px; font-size: 10.5px; color: var(--text-muted); }
+.admin-btn { padding: 6px 11px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--raised); color: var(--text); font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+.admin-btn:hover { border-color: rgb(54, 82, 135); background: rgb(28, 51, 88); }
+.admin-btn-secondary { background: transparent; color: var(--text-muted); font-weight: 500; }
+.admin-btn-secondary:hover { background: var(--raised); color: var(--text); }
+.blocklist-add { padding: 6px 11px; border: 1px solid transparent; border-radius: var(--radius-sm); background: var(--primary); color: rgb(255, 255, 255); font-family: inherit; font-size: 12px; font-weight: 500; cursor: pointer; transition: background 0.2s; }
+.blocklist-add:hover { background: var(--primary-hover); }
+.blocklist-row { display: flex; gap: 6px; }
+.blocklist-row > .admin-btn, .blocklist-row > .blocklist-add { width: auto; flex: 1 1 0px; min-width: 0px; }
+.blocklist-row input { flex: 1 1 0%; min-width: 0px; padding: 6px 9px; border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--bg); color: var(--text); font-family: var(--mono); font-size: 11.5px; outline: none; transition: border-color 0.15s; }
+.blocklist-row input::placeholder { color: rgb(109, 125, 156); }
+.blocklist-row input:focus { border-color: var(--primary); }
+.blocklist { display: flex; flex: 0 1 auto; flex-direction: column; gap: 2px; max-height: 110px; margin: 0px; padding: 0px; overflow-y: auto; list-style: none; }
+.blocklist:empty { display: none; }
+.blocklist li { display: flex; align-items: center; gap: 6px; padding: 4px 6px; background: var(--raised); border-radius: var(--radius-sm); }
+.blocklist-site { flex: 1 1 0%; min-width: 0px; font-family: var(--mono); font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.blocklist-tag { flex-shrink: 0; padding: 1px 5px; border: 1px solid var(--line-strong); border-radius: 999px; font-size: 10px; color: var(--text-muted); }
+.blocklist-remove { flex-shrink: 0; width: 18px; height: 18px; border-width: medium; border-style: none; border-color: currentcolor; border-image: none; border-radius: 4px; background: transparent; color: var(--text-muted); font-size: 13px; line-height: 1; cursor: pointer; transition: background 0.15s, color 0.15s; }
+.blocklist-remove:hover { background: rgba(210, 96, 77, 0.18); color: var(--danger); }
+.blocklist-note { font-size: 10.5px; color: var(--text-muted); }
+.footer { margin-top: 10px; text-align: center; font-size: 10.5px; color: var(--text-muted); }
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after { transition: none !important; animation: auto ease 0s 1 normal none running none !important; }
+}
+</style>
+</head>
+<body>
+    <div class="header">
+        <div class="brand">
+            <div class="logo-icon"><img src="icon.png" alt="SafeSight"></div>
+            <h2>SafeSight</h2>
+        </div>
+    </div>
+
+    <div class="notice" id="staleNotice" hidden="">
+        <span class="notice-text">This tab is still running an older build, so your changes are not applied here.</span>
+        <button id="staleReload" class="notice-action">Reload page</button>
+    </div>
+
+    <div class="readout">
+        <span class="readout-item"><span id="statScanned">0</span> Checked</span>
+        <span class="readout-sep">·</span>
+        <span class="readout-item"><span id="statBlocked">0</span> Blurred</span>
+        <span class="readout-sep">·</span>
+        <span class="readout-item"><span id="statAdsHidden">0</span> Ads</span>
+    </div>
+
+    <div class="status-card">
+        <div class="section-head">
+            <span class="section-title">Content filtering</span>
+            <span class="section-hint">On this device</span>
+        </div>
+        <div class="control-group">
+            <div class="control-item">
+                <div class="label-info">
+                    <span class="label-title">AI image filtering</span>
+                    <span class="label-desc">Scan images on this device</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="aiFilter">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="control-item">
+                <div class="label-info">
+                    <span class="label-title">Skin Filter</span>
+                    <span class="label-desc">Cover detected skin pixels</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="skinFilter">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="control-item" style="flex-direction: column; align-items: flex-start;">
+                <div class="label-info" style="margin-bottom: 8px;">
+                    <span class="label-title">Filter Sensitivity</span>
+                    <span id="sensitivityVal" class="label-desc" title="Standard 6/9: images scoring 4 or more are blurred.">Standard · 6/9</span>
+                </div>
+                <div class="range-container">
+                    <input type="range" id="sensitivity" min="1" max="9" step="1" value="6" class="sensitivity-range">
+                    <div class="range-labels">
+                        <span>Relaxed</span>
+                        <span>Strict</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="control-item">
+                <div class="label-info">
+                    <span class="label-title">Blur All</span>
+                    <span class="label-desc">Blur every image, no scanning</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="blurAll">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+    </div>
+
+    <div class="status-card">
+        <div class="section-head">
+            <span class="section-title">Network blocking</span>
+            <span class="section-hint">Blocked before load</span>
+        </div>
+        <div class="control-group">
+            <div class="control-item">
+                <div class="label-info">
+                    <span class="label-title">Adult content</span>
+                    <span class="label-desc">Block before the page loads</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="filterAdult">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="control-item">
+                <div class="label-info">
+                    <span class="label-title">Malware &amp; phishing</span>
+                    <span class="label-desc">Known unsafe hosts</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="filterMalware">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="control-item">
+                <div class="label-info">
+                    <span class="label-title">Ads &amp; trackers</span>
+                    <span class="label-desc">Third-party requests only</span>
+                </div>
+                <label class="switch">
+                    <input type="checkbox" id="filterAds">
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="blocklist-note" id="filterNote">Blocked requests are counted on the toolbar badge.</div>
+    </div>
+
+    <div class="status-card">
+        <div class="section-head">
+            <span class="section-title">This site</span>
+            <span class="section-hint" id="siteStateText">Not available on this page</span>
+        </div>
+        <div class="blocklist-row">
+            <button id="siteToggle" class="admin-btn admin-btn-secondary" disabled="">Turn off here</button>
+            <button id="zapBtn" class="admin-btn admin-btn-secondary" disabled="">Zap an element</button>
+        </div>
+    </div>
+
+    <div class="status-card">
+        <div class="section-head">
+            <span class="section-title">Blocked sites</span>
+            <span class="section-hint">Never open</span>
+        </div>
+        <div class="blocklist-row">
+            <input type="text" id="blockSiteInput" placeholder="example.com" spellcheck="false" autocomplete="off">
+            <button id="blockSiteAdd" class="blocklist-add">Add</button>
+        </div>
+        <ul id="blockSiteList" class="blocklist"></ul>
+        <div class="blocklist-note" id="blocklistNote">0 added • 12 default site(s) locked from blocklist.json</div>
+    </div>
+
+    <div class="footer">
+        Filtering runs on this device · v1.4
+    </div>
+
+    
+
+
+
+</body>
+</html>

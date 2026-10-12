@@ -4,8 +4,7 @@
     "version": "1.1",
     "description": "Fast and secure AI-powered image filtering using persistent LiteRT engine.",
     "permissions": [
-        "storage",
-        "tabs"
+        "storage"
     ],
     "host_permissions": [
         "<all_urls>"
@@ -54,9 +53,7 @@
                     "nsfw.tflite",
                     "blocked.html",
                     "blocked.js",
-                    "blocklist.json",
-                    "login.html",
-                    "login.js"
+                    "blocklist.json"
                 ],
             "matches": [
                 "<all_urls>"
